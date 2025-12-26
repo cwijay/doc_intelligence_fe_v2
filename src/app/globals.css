@@ -1,0 +1,285 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+:root {
+  --font-inter: 'Inter', sans-serif;
+  --font-poppins: 'Poppins', sans-serif;
+
+  /* Light mode colors */
+  --background: 249 250 251;
+  --foreground: 17 24 39;
+  --card: 255 255 255;
+  --card-foreground: 17 24 39;
+  --muted: 241 245 249;
+  --muted-foreground: 100 116 139;
+  --border: 226 232 240;
+  --input: 226 232 240;
+  --ring: 12 140 233;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 15 23 42;
+  --foreground: 241 245 249;
+  --card: 30 41 59;
+  --card-foreground: 241 245 249;
+  --muted: 51 65 85;
+  --muted-foreground: 148 163 184;
+  --border: 51 65 85;
+  --input: 51 65 85;
+  --ring: 96 165 250;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-inter), system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-inter), system-ui, sans-serif;
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    border-color: rgb(var(--border));
+  }
+
+  /* Focus visible styling for accessibility */
+  :focus-visible {
+    outline: 2px solid rgb(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .font-inter {
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+
+  .font-poppins {
+    font-family: var(--font-poppins), system-ui, sans-serif;
+  }
+}
+
+/* TipTap Editor Styles */
+.rich-text-editor {
+  background: rgb(var(--card));
+  transition: background-color 0.2s ease-in-out;
+}
+
+.editor-content {
+  min-height: 400px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.editor-content .ProseMirror {
+  min-height: 400px;
+  padding: 1rem;
+  outline: none;
+}
+
+.editor-content .ProseMirror:focus {
+  outline: none;
+}
+
+/* Table Styles */
+.editor-content table,
+.editor-content .editor-table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+  overflow: hidden;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.editor-content table td,
+.editor-content table th {
+  border: 1px solid rgb(var(--border));
+  box-sizing: border-box;
+  min-width: 1em;
+  padding: 0.5rem 0.75rem;
+  position: relative;
+  vertical-align: top;
+}
+
+.editor-content table th {
+  background-color: rgb(var(--muted));
+  font-weight: 600;
+  text-align: left;
+  color: rgb(var(--foreground));
+}
+
+.editor-content table td {
+  background-color: rgb(var(--card));
+  color: rgb(var(--foreground) / 0.8);
+}
+
+.editor-content table tr:hover td {
+  background-color: rgb(var(--muted) / 0.5);
+}
+
+/* Selected cell */
+.editor-content table .selectedCell:after {
+  background: rgba(59, 130, 246, 0.1);
+  content: "";
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+/* Column resize handle */
+.editor-content .column-resize-handle {
+  background-color: #3b82f6;
+  bottom: -2px;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 4px;
+}
+
+/* Table wrapper for resizing */
+.editor-content .tableWrapper {
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+/* Resize cursor */
+.editor-content.resize-cursor {
+  cursor: ew-resize;
+  cursor: col-resize;
+}
+
+/* Paragraph styles */
+.editor-content p {
+  margin: 0.5rem 0;
+}
+
+/* Headings */
+.editor-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+}
+
+.editor-content h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+
+.editor-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+
+/* Lists */
+.editor-content ul,
+.editor-content ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.editor-content ul {
+  list-style-type: disc;
+}
+
+.editor-content ol {
+  list-style-type: decimal;
+}
+
+.editor-content li {
+  margin: 0.25rem 0;
+}
+
+/* Code blocks */
+.editor-content pre {
+  background: #1f2937;
+  border-radius: 0.5rem;
+  color: #f3f4f6;
+  font-family: 'JetBrainsMono', monospace;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+}
+
+.dark .editor-content pre {
+  background: #0f172a;
+  border: 1px solid rgb(var(--border));
+}
+
+.editor-content code {
+  background-color: rgb(var(--muted));
+  border-radius: 0.25rem;
+  color: rgb(var(--foreground));
+  font-size: 0.875em;
+  padding: 0.125rem 0.25rem;
+}
+
+.editor-content pre code {
+  background: none;
+  color: inherit;
+  font-size: 0.875rem;
+  padding: 0;
+}
+
+/* Blockquotes */
+.editor-content blockquote {
+  border-left: 3px solid rgb(var(--border));
+  margin: 0.5rem 0;
+  padding-left: 1rem;
+  color: rgb(var(--muted-foreground));
+}
+
+/* Horizontal rule */
+.editor-content hr {
+  border: none;
+  border-top: 1px solid rgb(var(--border));
+  margin: 1rem 0;
+}
+
+/* Links */
+.editor-content a {
+  color: #0c8ce9;
+  text-decoration: underline;
+}
+
+.editor-content a:hover {
+  color: #006fcc;
+}
+
+.dark .editor-content a {
+  color: #36a9ff;
+}
+
+.dark .editor-content a:hover {
+  color: #7cc4ff;
+}
+
+/* Strong and emphasis */
+.editor-content strong {
+  font-weight: 600;
+}
+
+.editor-content em {
+  font-style: italic;
+}
+
+/* Placeholder */
+.editor-content .is-editor-empty:first-child::before {
+  color: #9ca3af;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
