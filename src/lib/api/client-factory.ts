@@ -135,7 +135,8 @@ function createResponseErrorHandler(config: ApiClientConfig) {
     if (error.response?.status === 401 && config.handleUnauthorized !== false) {
       const isAuthEndpoint = error.config?.url?.includes('/auth/login') ||
         error.config?.url?.includes('/auth/register') ||
-        error.config?.url?.includes('/auth/refresh');
+        error.config?.url?.includes('/auth/refresh') ||
+        error.config?.url?.includes('/auth/logout');
 
       if (!isAuthEndpoint && typeof window !== 'undefined') {
         console.log('🚫 401 Unauthorized - triggering automatic logout...');

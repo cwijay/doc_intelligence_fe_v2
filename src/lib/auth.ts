@@ -71,10 +71,11 @@ export class AuthService {
       async (error) => {
         const originalRequest = error.config;
 
-        // Skip token refresh for auth endpoints to prevent refresh loops during login
-        const isAuthEndpoint = originalRequest?.url?.includes('/auth/login') || 
+        // Skip token refresh for auth endpoints to prevent refresh loops
+        const isAuthEndpoint = originalRequest?.url?.includes('/auth/login') ||
                               originalRequest?.url?.includes('/auth/register') ||
-                              originalRequest?.url?.includes('/auth/refresh');
+                              originalRequest?.url?.includes('/auth/refresh') ||
+                              originalRequest?.url?.includes('/auth/logout');
 
         if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
           originalRequest._retry = true;
@@ -285,22 +286,27 @@ export class AuthService {
   }
 
   public async logout(): Promise<LogoutResponse> {
-    try {
-      const token = this.getAccessToken();
-      
-      if (token) {
+    // Always clear local tokens first to prevent cascading auth errors
+    // This ensures the user is logged out locally even if backend call fails
+    const hadToken = !!this.getAccessToken();
+    this.clearTokens();
+
+    // Only attempt backend logout if we had a token
+    if (hadToken) {
+      try {
+        // Note: This will fail if token was already invalid, but that's OK
+        // We've already cleared local tokens above
         const response = await this.api.post<LogoutResponse>('/auth/logout');
-        console.log('Backend logout successful');
+        console.log('✅ Backend logout successful');
         return response.data;
+      } catch (error) {
+        // Silently handle backend logout failures - user is already logged out locally
+        console.log('ℹ️ Backend logout skipped (session may have already expired)');
+        return { message: 'Logged out locally', logged_out_at: new Date().toISOString() };
       }
-      
-      return { message: 'Logged out successfully', logged_out_at: new Date().toISOString() };
-    } catch (error) {
-      console.warn('Backend logout failed, proceeding with local logout:', error);
-      return { message: 'Logged out locally', logged_out_at: new Date().toISOString() };
-    } finally {
-      this.clearTokens();
     }
+
+    return { message: 'Logged out successfully', logged_out_at: new Date().toISOString() };
   }
 
   public async validateToken(): Promise<TokenValidationResponse> {
