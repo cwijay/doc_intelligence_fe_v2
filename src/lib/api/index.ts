@@ -15,6 +15,7 @@ import { usersApi } from './users';
 import { foldersApi } from './folders';
 import { documentsApi as documentsBasicApi } from './documents';
 import { healthApi } from './health';
+import { usageApi } from './usage';
 import { summaryApi } from './ai-features/summary';
 import { faqApi } from './ai-features/faq';
 import { questionsApi } from './ai-features/questions';
@@ -25,6 +26,7 @@ export { organizationsApi };
 export { usersApi };
 export { foldersApi };
 export { healthApi };
+export { usageApi };
 
 // Export AI features individually
 export { summaryApi, faqApi, questionsApi };
@@ -38,7 +40,7 @@ export const documentsApi = {
 };
 
 // Export utility modules
-export { normalizeErrorMessage, createApiError } from './utils/error-handling';
+export { normalizeErrorMessage, createApiError, extractErrorMessage } from './utils/error-utils';
 export {
   checkServiceHealth,
   runServiceDiagnostics,
@@ -48,6 +50,5 @@ export {
   type ServiceDiagnosticResult,
   type SessionStatus,
 } from './utils/diagnostics';
-export { backendDetector, type BackendStatus } from './backend-monitor';
 export { withBackendFallback } from './fallback';
 export { adaptIngestParseResponse, isConnectionError } from './utils/parse-adapter';

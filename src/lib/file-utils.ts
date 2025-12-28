@@ -1,4 +1,5 @@
 import { Document } from '@/types/api';
+import { formatFileSize } from './file-types';
 
 // Excel and CSV file extensions
 export const EXCEL_FILE_EXTENSIONS = ['.xlsx', '.xls'] as const;
@@ -156,16 +157,8 @@ export const validateSpreadsheetDocuments = (documents: Document[]): {
   return { valid, invalid, errors };
 };
 
-// Get human-readable file size
-export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
+// Re-export formatFileSize from file-types for backward compatibility
+export { formatFileSize };
 
 // Get file type icon emoji based on MIME type
 export const getFileTypeIcon = (type: string): string => {

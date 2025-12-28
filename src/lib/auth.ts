@@ -13,6 +13,7 @@ import {
   SessionUser,
 } from '@/types/auth';
 import { clientConfig, getBrowserApiBaseUrl, isUsingLocalProxy, API_LOCAL_PROXY_PATH } from './config';
+import { STORAGE_KEYS, TIMEOUTS } from './constants';
 
 const API_BASE_URL = getBrowserApiBaseUrl();
 const usingLocalProxy = typeof window !== 'undefined' ? isUsingLocalProxy() : false;
@@ -21,11 +22,12 @@ if (usingLocalProxy) {
   console.log('🔁 Auth service using local API proxy:', API_LOCAL_PROXY_PATH);
 }
 
-const ACCESS_TOKEN_KEY = 'biz_to_bricks_access_token';
-const REFRESH_TOKEN_KEY = 'biz_to_bricks_refresh_token';
-const USER_KEY = 'biz_to_bricks_user';
-const ACCESS_TOKEN_EXPIRY_KEY = 'biz_to_bricks_access_expiry';
-const REFRESH_TOKEN_EXPIRY_KEY = 'biz_to_bricks_refresh_expiry';
+// Use constants for storage keys
+const ACCESS_TOKEN_KEY = STORAGE_KEYS.ACCESS_TOKEN;
+const REFRESH_TOKEN_KEY = STORAGE_KEYS.REFRESH_TOKEN;
+const USER_KEY = STORAGE_KEYS.USER;
+const ACCESS_TOKEN_EXPIRY_KEY = STORAGE_KEYS.ACCESS_EXPIRY;
+const REFRESH_TOKEN_EXPIRY_KEY = STORAGE_KEYS.REFRESH_EXPIRY;
 
 export class AuthService {
   private static instance: AuthService;
@@ -36,7 +38,7 @@ export class AuthService {
   private constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 30000,
+      timeout: TIMEOUTS.AUTH_API,
       headers: {
         'Content-Type': 'application/json',
       },

@@ -228,11 +228,22 @@ flowchart TD
 
 ### API & Network Layer
 
--   **HTTP Client**: Axios with comprehensive request/response interceptors
+-   **HTTP Client**: Axios with centralized client factory (`src/lib/api/client-factory.ts`)
 -   **Authentication**: JWT Bearer tokens with automatic refresh mechanism
+-   **Timeouts**: All API operations use 2-minute timeout (configurable in `constants.ts`)
 -   **Error Handling**: Centralized error handling with user-friendly messages
 -   **API Architecture**: RESTful APIs with snake_case/camelCase conversion
 -   **Dual-API Integration**: Simplified 2-URL pattern with dedicated clients for Main API and AI API
+
+### Centralized Constants (`src/lib/constants.ts`)
+
+All configuration values are centralized for maintainability:
+-   **TIMEOUTS**: API timeouts (all 2 minutes), diagnostics, session cleanup
+-   **STORAGE_KEYS**: localStorage keys for auth tokens, sidebar state, theme
+-   **LAYOUT**: Navbar height, sidebar dimensions, responsive breakpoints
+-   **FILE_EXTENSIONS/MIME_TYPES**: Supported file types for upload
+-   **UPLOAD_LIMITS**: Max file size, max files per upload
+-   **AI_LIMITS**: Summary word limits, FAQ/questions count limits
 
 ### Security & Route Protection
 
@@ -616,10 +627,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### Core Files
 
 -   `src/lib/config.ts` - Centralized 2-URL configuration (Main API + AI API)
--   `src/lib/api.ts` - Main API client for port 8000
--   `src/lib/api/ai-base.ts` - Dedicated AI API client for port 8001
+-   `src/lib/constants.ts` - Centralized constants (timeouts, storage keys, layout, limits)
+-   `src/lib/api/client-factory.ts` - Shared API client factory with interceptors
+-   `src/lib/api/base.ts` - Main API client for port 8000 (uses factory)
+-   `src/lib/api/ai-base.ts` - AI API client for port 8001 (uses factory)
 -   `src/lib/api/documents.ts` - Document processing API with GCS integration
 -   `src/lib/api/ai-features/` - AI feature modules (summary.ts, faq.ts, questions.ts)
+-   `src/lib/api/ai-features/helpers.ts` - Shared AI feature utilities
+-   `src/lib/api/utils/error-utils.ts` - Centralized error handling
 -   `src/lib/auth.ts` - Token management utilities
 -   `src/contexts/AuthContext.tsx` - Authentication state management
 -   `src/middleware.ts` - Route protection and caching

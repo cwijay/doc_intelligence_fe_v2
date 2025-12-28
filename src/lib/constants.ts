@@ -75,20 +75,20 @@ export const API_ENDPOINTS = {
 // =============================================================================
 
 export const TIMEOUTS = {
-  /** AI API operations (60 seconds) */
-  AI_API: 60000,
-  /** Authentication operations (30 seconds) */
-  AUTH_API: 30000,
+  /** AI API operations (2 minutes) */
+  AI_API: 120000,
+  /** Authentication operations (2 minutes) */
+  AUTH_API: 120000,
   /** Excel chat operations (10 minutes) */
   EXCEL_CHAT: 600000,
-  /** RAG API operations (15 seconds) */
-  RAG_API: 15000,
-  /** Base API operations (30 seconds) */
-  BASE_API: 30000,
-  /** Diagnostics checks (5 seconds) */
-  DIAGNOSTICS: 5000,
-  /** Backend monitor health checks (2 seconds) */
-  BACKEND_MONITOR: 2000,
+  /** RAG API operations (2 minutes) */
+  RAG_API: 120000,
+  /** Base API operations (2 minutes) */
+  BASE_API: 120000,
+  /** Diagnostics checks (2 minutes) */
+  DIAGNOSTICS: 120000,
+  /** Backend monitor health checks (2 minutes) */
+  BACKEND_MONITOR: 120000,
   /** Registration dev delay (3 seconds) */
   REGISTRATION_DEV: 3000,
   /** Session cleanup delay (5 seconds) */
@@ -188,6 +188,31 @@ export const STORAGE_KEYS = {
   // Generation preferences prefix
   GENERATION_COUNT_PREFIX: 'generation_count_',
   RECENT_COUNTS_PREFIX: 'recent_counts_',
+  // Sidebar state
+  SIDEBAR_STATE: 'document-tree-sidebar-state',
+  SIDEBAR_WIDTH: 'document-tree-sidebar-width',
+} as const;
+
+// =============================================================================
+// LAYOUT DIMENSIONS
+// =============================================================================
+
+export const LAYOUT = {
+  /** Navbar height in pixels */
+  NAVBAR_HEIGHT: 64,
+  /** Sidebar dimensions */
+  SIDEBAR: {
+    MIN_WIDTH: 200,
+    MAX_WIDTH: 500,
+    DEFAULT_WIDTH: 280,
+    COLLAPSED_WIDTH: 64,
+  },
+  /** Responsive breakpoints */
+  BREAKPOINTS: {
+    XL: 1280,
+    LG: 1024,
+    MD: 768,
+  },
 } as const;
 
 // =============================================================================

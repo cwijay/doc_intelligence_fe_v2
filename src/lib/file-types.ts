@@ -300,38 +300,6 @@ export const getFileTypeInfo = (filename: string, mimeType?: string): FileTypeIn
   };
 };
 
-export const getCategoryColor = (category: FileTypeInfo['category']): string => {
-  const categoryColors = {
-    document: 'text-blue-600',
-    spreadsheet: 'text-green-600',
-    presentation: 'text-orange-600',
-    image: 'text-pink-600',
-    video: 'text-indigo-600',
-    audio: 'text-teal-600',
-    code: 'text-yellow-600',
-    archive: 'text-gray-600',
-    other: 'text-gray-600',
-  };
-  
-  return categoryColors[category];
-};
-
-export const getCategoryBadgeColor = (category: FileTypeInfo['category']): string => {
-  const categoryBadgeColors = {
-    document: 'bg-blue-100 text-blue-800',
-    spreadsheet: 'bg-green-100 text-green-800',
-    presentation: 'bg-orange-100 text-orange-800',
-    image: 'bg-pink-100 text-pink-800',
-    video: 'bg-indigo-100 text-indigo-800',
-    audio: 'bg-teal-100 text-teal-800',
-    code: 'bg-yellow-100 text-yellow-800',
-    archive: 'bg-gray-100 text-gray-800',
-    other: 'bg-gray-100 text-gray-800',
-  };
-  
-  return categoryBadgeColors[category];
-};
-
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
   
@@ -347,9 +315,4 @@ export const formatFileSize = (bytes: number): string => {
   }
   
   return `${size} ${sizes[i]}`;
-};
-
-export const isPreviewSupported = (filename: string): boolean => {
-  const fileInfo = getFileTypeInfo(filename);
-  return fileInfo.preview === true;
 };

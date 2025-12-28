@@ -6,8 +6,16 @@ import {
   AISummarizeRequest,
   AISummarizeResponse,
 } from '@/types/api';
-import { constructParsedFilePath, validateParsedFilePath } from '../utils/path-utils';
+import { constructParsedFilePath } from '../utils/path-utils';
 import { API_ENDPOINTS, AI_LIMITS } from '@/lib/constants';
+import {
+  validateAIInputs,
+  clampQuantity,
+  logGenerationStart,
+  logGenerationSuccess,
+  logGenerationError,
+  buildBaseRequest
+} from './helpers';
 
 export const summaryApi = {
   /**
@@ -20,39 +28,24 @@ export const summaryApi = {
     sessionId?: string,
     force: boolean = false
   ): Promise<AISummarizeResponse> => {
-    if (!documentName || documentName.trim() === '') {
-      throw new Error('document_name is required and cannot be empty');
-    }
-    validateParsedFilePath(parsedFilePath);
+    validateAIInputs(documentName, parsedFilePath);
 
-    const validMaxWords = Math.min(
-      Math.max(maxWords, AI_LIMITS.SUMMARY.MIN_WORDS),
-      AI_LIMITS.SUMMARY.MAX_WORDS
-    );
+    const validMaxWords = clampQuantity(maxWords, AI_LIMITS.SUMMARY.MIN_WORDS, AI_LIMITS.SUMMARY.MAX_WORDS);
 
     try {
-      console.log('📝 Generating summary via AI API:', {
-        documentName,
-        parsedFilePath,
-        maxWords: validMaxWords,
-        force
-      });
+      logGenerationStart('📝', 'summary', documentName, parsedFilePath, validMaxWords, force);
 
       const requestData: AISummarizeRequest = {
-        document_name: documentName,
-        parsed_file_path: parsedFilePath,
+        ...buildBaseRequest(documentName, parsedFilePath, sessionId, force),
         max_words: validMaxWords,
-        ...(sessionId && { session_id: sessionId }),
-        ...(force && { force: true })
-      };
+      } as AISummarizeRequest;
 
       const response: AxiosResponse<AISummarizeResponse> = await aiApi.post(
         API_ENDPOINTS.SUMMARIZE,
         requestData
       );
 
-      console.log('✅ Summary generated successfully:', {
-        documentName,
+      logGenerationSuccess(documentName, {
         wordCount: response.data.word_count,
         cached: response.data.cached,
         processingTime: response.data.processing_time_ms
@@ -60,7 +53,7 @@ export const summaryApi = {
 
       return response.data;
     } catch (error) {
-      console.error('🚫 Summary generation failed:', error);
+      logGenerationError('Summary', error);
       throw error;
     }
   },

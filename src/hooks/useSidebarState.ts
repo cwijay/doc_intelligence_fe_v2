@@ -1,28 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { STORAGE_KEYS, LAYOUT } from '@/lib/constants';
 
 export type SidebarState = 'expanded' | 'collapsed' | 'hidden';
 
-const STORAGE_KEY = 'document-tree-sidebar-state';
-const WIDTH_STORAGE_KEY = 'document-tree-sidebar-width';
-
-// Sidebar width constraints
-const MIN_WIDTH = 200;
-const MAX_WIDTH = 500;
-const DEFAULT_WIDTH = 280;
-const COLLAPSED_WIDTH = 64;
-
-// Responsive breakpoints
-const BREAKPOINTS = {
-  xl: 1280,
-  lg: 1024,
-  md: 768,
-};
-
 function getDefaultStateForWidth(width: number): SidebarState {
-  if (width >= BREAKPOINTS.xl) return 'expanded';
-  if (width >= BREAKPOINTS.lg) return 'collapsed';
+  if (width >= LAYOUT.BREAKPOINTS.XL) return 'expanded';
+  if (width >= LAYOUT.BREAKPOINTS.LG) return 'collapsed';
   return 'hidden';
 }
 
@@ -44,7 +29,7 @@ export interface UseSidebarStateReturn {
 
 export function useSidebarState(): UseSidebarStateReturn {
   const [sidebarState, setSidebarStateInternal] = useState<SidebarState>('expanded');
-  const [customWidth, setCustomWidthInternal] = useState<number>(DEFAULT_WIDTH);
+  const [customWidth, setCustomWidthInternal] = useState<number>(LAYOUT.SIDEBAR.DEFAULT_WIDTH);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize state from localStorage or responsive default
@@ -52,7 +37,7 @@ export function useSidebarState(): UseSidebarStateReturn {
     if (typeof window === 'undefined') return;
 
     // Restore sidebar state
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEYS.SIDEBAR_STATE);
     if (stored && ['expanded', 'collapsed', 'hidden'].includes(stored)) {
       setSidebarStateInternal(stored as SidebarState);
     } else {
@@ -60,10 +45,10 @@ export function useSidebarState(): UseSidebarStateReturn {
     }
 
     // Restore custom width
-    const storedWidth = localStorage.getItem(WIDTH_STORAGE_KEY);
+    const storedWidth = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
     if (storedWidth) {
       const width = parseInt(storedWidth, 10);
-      if (!isNaN(width) && width >= MIN_WIDTH && width <= MAX_WIDTH) {
+      if (!isNaN(width) && width >= LAYOUT.SIDEBAR.MIN_WIDTH && width <= LAYOUT.SIDEBAR.MAX_WIDTH) {
         setCustomWidthInternal(width);
       }
     }
@@ -77,13 +62,13 @@ export function useSidebarState(): UseSidebarStateReturn {
 
     const handleResize = () => {
       const width = window.innerWidth;
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEYS.SIDEBAR_STATE);
 
       // Only auto-adjust if user hasn't manually set a preference
       // or if we're going to a smaller screen that requires hiding
       if (!stored) {
         setSidebarStateInternal(getDefaultStateForWidth(width));
-      } else if (width < BREAKPOINTS.md && stored !== 'hidden') {
+      } else if (width < LAYOUT.BREAKPOINTS.MD && stored !== 'hidden') {
         // Force hidden on very small screens
         setSidebarStateInternal('hidden');
       }
@@ -96,7 +81,7 @@ export function useSidebarState(): UseSidebarStateReturn {
   const setSidebarState = useCallback((state: SidebarState) => {
     setSidebarStateInternal(state);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, state);
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_STATE, state);
     }
   }, []);
 
@@ -114,15 +99,15 @@ export function useSidebarState(): UseSidebarStateReturn {
 
   // Set custom width with constraints and persistence
   const setCustomWidth = useCallback((width: number) => {
-    const constrainedWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width));
+    const constrainedWidth = Math.min(LAYOUT.SIDEBAR.MAX_WIDTH, Math.max(LAYOUT.SIDEBAR.MIN_WIDTH, width));
     setCustomWidthInternal(constrainedWidth);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(WIDTH_STORAGE_KEY, constrainedWidth.toString());
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, constrainedWidth.toString());
     }
   }, []);
 
   // Calculate sidebar width based on state
-  const sidebarWidth = sidebarState === 'expanded' ? customWidth : sidebarState === 'collapsed' ? COLLAPSED_WIDTH : 0;
+  const sidebarWidth = sidebarState === 'expanded' ? customWidth : sidebarState === 'collapsed' ? LAYOUT.SIDEBAR.COLLAPSED_WIDTH : 0;
 
   return {
     sidebarState,
@@ -136,7 +121,7 @@ export function useSidebarState(): UseSidebarStateReturn {
     // Resizable sidebar
     customWidth,
     setCustomWidth,
-    minWidth: MIN_WIDTH,
-    maxWidth: MAX_WIDTH,
+    minWidth: LAYOUT.SIDEBAR.MIN_WIDTH,
+    maxWidth: LAYOUT.SIDEBAR.MAX_WIDTH,
   };
 }

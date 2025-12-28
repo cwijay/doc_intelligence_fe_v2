@@ -123,11 +123,14 @@ Protected routes require authentication:
 
 ### Configuration & API
 - `src/lib/config.ts` - Centralized configuration with 2-URL pattern (Main API + AI API)
-- `src/lib/api.ts` - Main API client with Axios interceptors and token management
-- `src/lib/api/ai-base.ts` - Dedicated AI API client for port 8001 services
+- `src/lib/constants.ts` - Centralized constants (timeouts, storage keys, layout, API config)
+- `src/lib/api/client-factory.ts` - Shared API client factory with interceptors (token injection, error handling)
+- `src/lib/api/base.ts` - Main API client for port 8000 (uses client factory)
+- `src/lib/api/ai-base.ts` - AI API client for port 8001 (uses client factory)
 - `src/lib/api/ai-features/` - AI feature modules (summary.ts, faq.ts, questions.ts)
+- `src/lib/api/ai-features/helpers.ts` - Shared AI feature utilities
 - `src/lib/api/ingestion/` - Document ingestion and RAG operations
-- `src/lib/constants.ts` - Application constants
+- `src/lib/api/utils/error-utils.ts` - Centralized error handling utilities
 
 ### State & Context
 - `src/contexts/AuthContext.tsx` - Authentication state using useReducer pattern
@@ -159,6 +162,26 @@ Protected routes require authentication:
 - Server-side config in `serverConfig` (server components only)
 - Helper functions: `getApiUrl()`, `getApiBaseUrl()` for URL construction
 - Local proxy support for development (`/api/backend` proxy path)
+
+### Centralized Constants (`src/lib/constants.ts`)
+All hardcoded values are centralized for maintainability:
+
+```typescript
+// API Timeouts (all 2 minutes)
+TIMEOUTS.AI_API, TIMEOUTS.AUTH_API, TIMEOUTS.RAG_API, TIMEOUTS.BASE_API
+
+// Storage Keys (localStorage)
+STORAGE_KEYS.ACCESS_TOKEN, STORAGE_KEYS.SIDEBAR_STATE, etc.
+
+// Layout Constants
+LAYOUT.NAVBAR_HEIGHT, LAYOUT.SIDEBAR.MIN_WIDTH, LAYOUT.BREAKPOINTS.XL
+
+// File Configuration
+FILE_EXTENSIONS.EXCEL, MIME_TYPES.PDF, UPLOAD_LIMITS.MAX_FILE_SIZE
+
+// AI Generation Limits
+AI_LIMITS.SUMMARY.MAX_WORDS, AI_LIMITS.FAQ.DEFAULT
+```
 
 ### Authentication Flow
 1. User logs in via `/login` with email/password
@@ -335,12 +358,18 @@ The application uses a simplified 2-URL configuration pattern:
   - Excel chat
 
 ### API Clients
-- `src/lib/api.ts` - Main API client for port 8000
-- `src/lib/api/ai-base.ts` - AI API client for port 8001 with:
-  - 60-second timeout for AI operations
-  - Automatic Bearer token injection
-  - Organization ID header (`X-Organization-ID`)
-  - Comprehensive error handling
+All API clients use the centralized client factory (`src/lib/api/client-factory.ts`) for consistent behavior:
+
+- `src/lib/api/base.ts` - Main API client for port 8000
+- `src/lib/api/ai-base.ts` - AI API client for port 8001
+- `src/lib/api/ingestion/clients.ts` - RAG and ingestion clients
+
+**Shared Features (via client factory):**
+- 2-minute timeout for all API operations (configurable in `constants.ts`)
+- Automatic Bearer token injection from localStorage
+- Organization ID header (`X-Organization-ID`) where applicable
+- Centralized error handling with user-friendly messages
+- Request/response logging in development mode
 
 ### Local Development Proxy
 - Development requests use `/api/backend` proxy to avoid CORS issues

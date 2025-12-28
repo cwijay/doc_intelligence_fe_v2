@@ -7,8 +7,16 @@ import {
   AIQuestionsResponse,
   DifficultyLevel,
 } from '@/types/api';
-import { constructParsedFilePath, validateParsedFilePath } from '../utils/path-utils';
+import { constructParsedFilePath } from '../utils/path-utils';
 import { API_ENDPOINTS, AI_LIMITS } from '@/lib/constants';
+import {
+  validateAIInputs,
+  clampQuantity,
+  logGenerationStart,
+  logGenerationSuccess,
+  logGenerationError,
+  buildBaseRequest
+} from './helpers';
 
 export const questionsApi = {
   /**
@@ -21,39 +29,24 @@ export const questionsApi = {
     sessionId?: string,
     force: boolean = false
   ): Promise<AIQuestionsResponse> => {
-    if (!documentName || documentName.trim() === '') {
-      throw new Error('document_name is required and cannot be empty');
-    }
-    validateParsedFilePath(parsedFilePath);
+    validateAIInputs(documentName, parsedFilePath);
 
-    const validNumQuestions = Math.min(
-      Math.max(numQuestions, AI_LIMITS.QUESTIONS.MIN),
-      AI_LIMITS.QUESTIONS.MAX
-    );
+    const validNumQuestions = clampQuantity(numQuestions, AI_LIMITS.QUESTIONS.MIN, AI_LIMITS.QUESTIONS.MAX);
 
     try {
-      console.log('📋 Generating questions via AI API:', {
-        documentName,
-        parsedFilePath,
-        numQuestions: validNumQuestions,
-        force
-      });
+      logGenerationStart('📋', 'questions', documentName, parsedFilePath, validNumQuestions, force);
 
       const requestData: AIQuestionsRequest = {
-        document_name: documentName,
-        parsed_file_path: parsedFilePath,
+        ...buildBaseRequest(documentName, parsedFilePath, sessionId, force),
         num_questions: validNumQuestions,
-        ...(sessionId && { session_id: sessionId }),
-        ...(force && { force: true })
-      };
+      } as AIQuestionsRequest;
 
       const response: AxiosResponse<AIQuestionsResponse> = await aiApi.post(
         API_ENDPOINTS.QUESTIONS,
         requestData
       );
 
-      console.log('✅ Questions generated successfully:', {
-        documentName,
+      logGenerationSuccess(documentName, {
         count: response.data.count,
         difficultyDistribution: response.data.difficulty_distribution,
         cached: response.data.cached,
@@ -62,7 +55,7 @@ export const questionsApi = {
 
       return response.data;
     } catch (error) {
-      console.error('🚫 Questions generation failed:', error);
+      logGenerationError('Questions', error);
       throw error;
     }
   },
@@ -79,7 +72,7 @@ export const questionsApi = {
     return {
       id: `${documentId}-questions`,
       document_id: documentId,
-      questions: response.questions.map(q => ({
+      questions: (response.questions || []).map(q => ({
         question: q.question,
         expected_answer: q.expected_answer,
         difficulty: q.difficulty as DifficultyLevel,

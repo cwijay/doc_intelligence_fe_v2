@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useDocuments } from '@/hooks/useDocuments';
 import { ExistingDocumentInfo } from '@/types/api';
+import { FILE_EXTENSIONS, MIME_TYPES, UPLOAD_LIMITS } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 // Interface for duplicate conflict state
@@ -25,18 +26,22 @@ export function useDocumentUpload() {
   const [duplicateConflict, setDuplicateConflict] = useState<DuplicateConflict | null>(null);
   const [isReplacing, setIsReplacing] = useState(false);
 
-  // Allowed file types (must match backend configuration)
-  const ALLOWED_EXTENSIONS = ['xlsx', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'];
+  // Allowed file types from constants
+  const ALLOWED_EXTENSIONS = [
+    ...FILE_EXTENSIONS.EXCEL.map(ext => ext.replace('.', '')),
+    ...FILE_EXTENSIONS.DOCUMENTS.map(ext => ext.replace('.', '')),
+    ...FILE_EXTENSIONS.IMAGES.map(ext => ext.replace('.', '')),
+  ];
   const ALLOWED_MIME_TYPES = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel',
-    'image/png',
-    'image/jpeg',
-    'image/gif',
-    'image/webp',
-    'image/bmp',
-    'image/svg+xml'
+    MIME_TYPES.PDF,
+    MIME_TYPES.EXCEL_XLSX,
+    MIME_TYPES.EXCEL_XLS,
+    MIME_TYPES.PNG,
+    MIME_TYPES.JPEG,
+    MIME_TYPES.GIF,
+    MIME_TYPES.WEBP,
+    MIME_TYPES.BMP,
+    MIME_TYPES.SVG,
   ];
 
   const isValidFileType = useCallback((file: File): boolean => {
@@ -46,7 +51,7 @@ export function useDocumentUpload() {
       return true;
     }
     // Check by MIME type as fallback
-    if (ALLOWED_MIME_TYPES.includes(file.type)) {
+    if (ALLOWED_MIME_TYPES.some(mime => mime === file.type)) {
       return true;
     }
     return false;
@@ -74,8 +79,7 @@ export function useDocumentUpload() {
       }
 
       // Validate file size
-      const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-      if (file.size > MAX_FILE_SIZE) {
+      if (file.size > UPLOAD_LIMITS.MAX_FILE_SIZE) {
         toast.error(`File ${file.name} is too large. Maximum size is 100MB.`);
         console.warn(`File ${file.name} exceeds size limit: ${file.size} bytes`);
         continue;
@@ -133,7 +137,6 @@ export function useDocumentUpload() {
   const validateFiles = useCallback((files: File[]): { valid: File[], invalid: { file: File, reason: string }[] } => {
     const valid: File[] = [];
     const invalid: { file: File, reason: string }[] = [];
-    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
     for (const file of files) {
       // Check file type
@@ -143,8 +146,9 @@ export function useDocumentUpload() {
         continue;
       }
 
-      if (file.size > MAX_FILE_SIZE) {
-        invalid.push({ file, reason: `File too large (${(file.size / (1024 * 1024)).toFixed(1)}MB > 100MB)` });
+      if (file.size > UPLOAD_LIMITS.MAX_FILE_SIZE) {
+        const maxMB = UPLOAD_LIMITS.MAX_FILE_SIZE / (1024 * 1024);
+        invalid.push({ file, reason: `File too large (${(file.size / (1024 * 1024)).toFixed(1)}MB > ${maxMB}MB)` });
         continue;
       }
 

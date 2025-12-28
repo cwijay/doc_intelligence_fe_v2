@@ -6,8 +6,16 @@ import {
   AIFAQsRequest,
   AIFAQsResponse,
 } from '@/types/api';
-import { constructParsedFilePath, validateParsedFilePath } from '../utils/path-utils';
+import { constructParsedFilePath } from '../utils/path-utils';
 import { API_ENDPOINTS, AI_LIMITS } from '@/lib/constants';
+import {
+  validateAIInputs,
+  clampQuantity,
+  logGenerationStart,
+  logGenerationSuccess,
+  logGenerationError,
+  buildBaseRequest
+} from './helpers';
 
 export const faqApi = {
   /**
@@ -20,39 +28,24 @@ export const faqApi = {
     sessionId?: string,
     force: boolean = false
   ): Promise<AIFAQsResponse> => {
-    if (!documentName || documentName.trim() === '') {
-      throw new Error('document_name is required and cannot be empty');
-    }
-    validateParsedFilePath(parsedFilePath);
+    validateAIInputs(documentName, parsedFilePath);
 
-    const validNumFaqs = Math.min(
-      Math.max(numFaqs, AI_LIMITS.FAQ.MIN),
-      AI_LIMITS.FAQ.MAX
-    );
+    const validNumFaqs = clampQuantity(numFaqs, AI_LIMITS.FAQ.MIN, AI_LIMITS.FAQ.MAX);
 
     try {
-      console.log('❓ Generating FAQs via AI API:', {
-        documentName,
-        parsedFilePath,
-        numFaqs: validNumFaqs,
-        force
-      });
+      logGenerationStart('❓', 'FAQs', documentName, parsedFilePath, validNumFaqs, force);
 
       const requestData: AIFAQsRequest = {
-        document_name: documentName,
-        parsed_file_path: parsedFilePath,
+        ...buildBaseRequest(documentName, parsedFilePath, sessionId, force),
         num_faqs: validNumFaqs,
-        ...(sessionId && { session_id: sessionId }),
-        ...(force && { force: true })
-      };
+      } as AIFAQsRequest;
 
       const response: AxiosResponse<AIFAQsResponse> = await aiApi.post(
         API_ENDPOINTS.FAQS,
         requestData
       );
 
-      console.log('✅ FAQs generated successfully:', {
-        documentName,
+      logGenerationSuccess(documentName, {
         count: response.data.count,
         cached: response.data.cached,
         processingTime: response.data.processing_time_ms
@@ -60,7 +53,7 @@ export const faqApi = {
 
       return response.data;
     } catch (error) {
-      console.error('🚫 FAQ generation failed:', error);
+      logGenerationError('FAQ', error);
       throw error;
     }
   },
@@ -77,7 +70,7 @@ export const faqApi = {
     return {
       id: `${documentId}-faq`,
       document_id: documentId,
-      faqs: response.faqs.map(faq => ({
+      faqs: (response.faqs || []).map(faq => ({
         question: faq.question,
         answer: faq.answer
       })),

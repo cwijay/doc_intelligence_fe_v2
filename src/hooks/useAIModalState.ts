@@ -65,8 +65,8 @@ interface UseAIModalStateReturn<TData, TRegenerateOptions> {
 /**
  * Shared hook for AI modal state management.
  *
- * This hook consolidates the common state and handlers used across
- * DocumentSummaryModal, DocumentFAQModal, and DocumentQuestionsModal.
+ * This hook consolidates the common state and handlers used by
+ * the unified DocumentAIContentModal for Summary, FAQ, and Questions.
  *
  * @example
  * ```tsx
