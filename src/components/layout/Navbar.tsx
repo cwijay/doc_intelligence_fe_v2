@@ -6,17 +6,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   DocumentTextIcon,
   ChartBarIcon,
+  ChartPieIcon,
   Cog6ToothIcon,
   UserIcon,
   Bars3Icon,
   XMarkIcon,
-  BuildingOfficeIcon,
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
   ChevronDownIcon,
   SunIcon,
   MoonIcon,
 } from '@heroicons/react/24/outline';
+import Logo from '@/components/ui/Logo';
 import { clsx } from 'clsx';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +26,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon },
   { name: 'Documents', href: '/documents', icon: DocumentTextIcon },
+  { name: 'Usage', href: '/usage', icon: ChartPieIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
 
@@ -45,12 +47,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-3 group">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-primary-500 dark:from-primary-500 dark:to-primary-400 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200 shadow-sm">
-                <BuildingOfficeIcon className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-poppins font-bold text-xl text-secondary-900 dark:text-secondary-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200">
-                Biz-To-Bricks
-              </span>
+              <Logo size="md" showText />
             </Link>
             
             <div className="hidden md:ml-10 md:flex md:space-x-1">

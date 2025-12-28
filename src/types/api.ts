@@ -1,4 +1,4 @@
-export type PlanType = 'free' | 'starter' | 'pro';
+export type PlanType = 'free' | 'pro' | 'enterprise';
 
 export interface Organization {
   id: string;
@@ -491,7 +491,7 @@ export interface AIFAQsRequest {
 // New FAQs Response (AI API)
 export interface AIFAQsResponse {
   success: boolean;
-  faqs: Array<{
+  faqs?: Array<{
     question: string;
     answer: string;
   }>;
@@ -526,7 +526,7 @@ export interface DifficultyDistribution {
 // New Questions Response (AI API)
 export interface AIQuestionsResponse {
   success: boolean;
-  questions: AIQuestion[];
+  questions?: AIQuestion[];
   count: number;
   difficulty_distribution: DifficultyDistribution;
   cached: boolean;

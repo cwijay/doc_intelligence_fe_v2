@@ -247,9 +247,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return await authService.validateToken();
   };
 
-  const isSessionExpired = (): boolean => {
-    return authService.isAccessTokenExpired();
-  };
+  const isSessionExpired = useCallback((): boolean => {
+    // During SSR, localStorage is not available - assume not expired
+    if (typeof window === 'undefined') {
+      console.log('🔍 isSessionExpired: SSR mode, skipping check');
+      return false;
+    }
+
+    // Use React state values instead of reading localStorage directly
+    // This prevents race conditions during client-side navigation
+    const now = new Date();
+    const buffer = 1 * 60 * 1000; // 1 minute buffer
+
+    // Check access token expiry from state
+    const accessExpired = state.accessTokenExpiry
+      ? now.getTime() >= (state.accessTokenExpiry.getTime() - buffer)
+      : true;
+
+    // Check refresh token expiry from state
+    const refreshExpired = state.refreshTokenExpiry
+      ? now >= state.refreshTokenExpiry
+      : true;
+
+    // Session is expired only if both access AND refresh tokens are expired
+    const canRefresh = state.refreshToken && !refreshExpired;
+    const expired = accessExpired && !canRefresh;
+
+    console.log('🔍 isSessionExpired check (using React state):', {
+      accessExpired,
+      refreshExpired,
+      canRefresh: !!canRefresh,
+      sessionExpired: expired,
+      hasAccessTokenExpiry: !!state.accessTokenExpiry,
+      hasRefreshTokenExpiry: !!state.refreshTokenExpiry,
+    });
+
+    return expired;
+  }, [state.accessTokenExpiry, state.refreshTokenExpiry, state.refreshToken]);
 
   const getTimeUntilExpiry = (): number => {
     return authService.getTimeUntilExpiry();

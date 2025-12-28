@@ -20,7 +20,7 @@ export default async function LoginLayout({
 
 export async function generateMetadata() {
   return {
-    title: 'Login | Biz-To-Bricks',
+    title: 'Login | biz2Bricks.ai',
     description: 'Access your document intelligence platform',
     robots: 'noindex, nofollow',
     other: {

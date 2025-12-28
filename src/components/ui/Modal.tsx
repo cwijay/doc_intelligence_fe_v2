@@ -62,7 +62,7 @@ export default function Modal({
               <Dialog.Panel
                 className={clsx(
                   'w-full transform overflow-hidden rounded-2xl p-6 text-left align-middle transition-all',
-                  'bg-white dark:bg-secondary-800',
+                  'bg-gradient-to-br from-white to-[#fafafa] dark:from-brand-navy-600 dark:to-brand-navy-700',
                   'shadow-strong dark:shadow-dark-strong',
                   'border border-secondary-200/50 dark:border-secondary-700/50',
                   sizeClasses[size],

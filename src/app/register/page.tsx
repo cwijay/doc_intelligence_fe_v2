@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
-import { DocumentTextIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import Logo from '@/components/ui/Logo';
 import { useRouter, useSearchParams } from 'next/navigation';
 import RegisterForm from '@/components/auth/RegisterForm';
 import LoginForm from '@/components/auth/LoginForm';
@@ -41,24 +41,19 @@ function RegisterPageContent() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
+    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700 flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="sm:mx-auto sm:w-full sm:max-w-lg">
         {/* Logo and Brand */}
         <div className="flex items-center justify-center mb-8">
           <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-500 dark:from-primary-500 dark:to-primary-400 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-200 shadow-sm">
-              <DocumentTextIcon className="w-7 h-7 text-white" />
-            </div>
-            <span className="font-poppins font-bold text-2xl text-secondary-900 dark:text-secondary-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200">
-              Biz-To-Bricks
-            </span>
+            <Logo size="lg" showText />
           </Link>
         </div>
 
         {/* Page Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-secondary-900 dark:text-secondary-100">
-            {isLoginMode ? 'Sign In' : 'Join Biz-To-Bricks'}
+            {isLoginMode ? 'Sign In' : 'Join biz2Bricks.ai'}
           </h1>
           <p className="mt-2 text-secondary-600 dark:text-secondary-400">
             {isLoginMode
@@ -160,7 +155,7 @@ export default function RegisterPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900 flex items-center justify-center transition-colors duration-200">
+        <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700 flex items-center justify-center transition-colors duration-200">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-400 mx-auto mb-4"></div>
             <p className="text-secondary-600 dark:text-secondary-400">Loading...</p>

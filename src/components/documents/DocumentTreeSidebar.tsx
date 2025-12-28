@@ -31,6 +31,7 @@ interface DocumentTreeSidebarProps {
   onDocumentSelect: (documentId: string | null) => void;
   onFolderMultiSelect: (folderId: string) => void;
   onDocumentMultiSelect: (documentId: string) => void;
+  onFolderCheckboxWithDocuments?: (folderId: string, documentIds: string[]) => void;
   onCreateFolder?: () => void;
   // Resizable sidebar
   customWidth: number;
@@ -52,6 +53,7 @@ function FolderDocuments({
   multiSelectedDocumentIds,
   onDocumentSelect,
   onDocumentMultiSelect,
+  onDocumentsLoaded,
 }: {
   folderId: string;
   folderName: string;
@@ -60,6 +62,7 @@ function FolderDocuments({
   multiSelectedDocumentIds: Set<string>;
   onDocumentSelect: (documentId: string | null) => void;
   onDocumentMultiSelect: (documentId: string) => void;
+  onDocumentsLoaded?: (folderId: string, documentIds: string[]) => void;
 }) {
   const { user } = useAuth();
   const organizationId = user?.org_id || '';
@@ -70,6 +73,14 @@ function FolderDocuments({
     folderName,
     !!organizationId && !!folderId && !!folderName
   );
+
+  // Report document IDs to parent when loaded
+  useEffect(() => {
+    if (documentsData?.documents && onDocumentsLoaded) {
+      const docIds = documentsData.documents.map((doc: Document) => doc.id);
+      onDocumentsLoaded(folderId, docIds);
+    }
+  }, [documentsData?.documents, folderId, onDocumentsLoaded]);
 
   if (isLoading) {
     return (
@@ -137,6 +148,7 @@ export default function DocumentTreeSidebar({
   onDocumentSelect,
   onFolderMultiSelect,
   onDocumentMultiSelect,
+  onFolderCheckboxWithDocuments,
   onCreateFolder,
   // Resizable sidebar
   customWidth,
@@ -148,6 +160,41 @@ export default function DocumentTreeSidebar({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOrgExpanded, setIsOrgExpanded] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Cache document IDs per folder for auto-select on folder checkbox click
+  const [folderDocumentIds, setFolderDocumentIds] = useState<Record<string, string[]>>({});
+
+  // Handler for when documents are loaded in a folder
+  const handleDocumentsLoaded = useCallback((folderId: string, docIds: string[]) => {
+    setFolderDocumentIds(prev => ({ ...prev, [folderId]: docIds }));
+  }, []);
+
+  // Handler for folder checkbox click - auto-select all documents
+  const handleFolderCheckboxClick = useCallback((folderId: string) => {
+    if (onFolderCheckboxWithDocuments) {
+      const docIds = folderDocumentIds[folderId] || [];
+      onFolderCheckboxWithDocuments(folderId, docIds);
+    } else {
+      // Fallback to old behavior if new callback not provided
+      onFolderMultiSelect(folderId);
+    }
+  }, [onFolderCheckboxWithDocuments, folderDocumentIds, onFolderMultiSelect]);
+
+  // Auto-select documents when folder is selected AND documents are loaded
+  // This fixes timing issue where cache was empty when checkbox was clicked
+  useEffect(() => {
+    multiSelectedFolderIds.forEach(folderId => {
+      const cachedDocIds = folderDocumentIds[folderId];
+      if (cachedDocIds && cachedDocIds.length > 0) {
+        // Check if these documents are already selected
+        const allDocsSelected = cachedDocIds.every(docId => multiSelectedDocumentIds.has(docId));
+        if (!allDocsSelected && onFolderCheckboxWithDocuments) {
+          // Documents loaded but not selected - select them now
+          onFolderCheckboxWithDocuments(folderId, cachedDocIds);
+        }
+      }
+    });
+  }, [folderDocumentIds, multiSelectedFolderIds, multiSelectedDocumentIds, onFolderCheckboxWithDocuments]);
 
   const isCollapsed = sidebarState === 'collapsed';
   const isHidden = sidebarState === 'hidden';
@@ -375,7 +422,7 @@ export default function DocumentTreeSidebar({
                             childCount={folder.document_count}
                             onToggleExpand={() => toggleFolderExpand(folder.id)}
                             onClick={() => onFolderSelect(folder.id)}
-                            onCheckboxChange={() => onFolderMultiSelect(folder.id)}
+                            onCheckboxChange={() => handleFolderCheckboxClick(folder.id)}
                             isCollapsedMode={isCollapsed}
                             showCheckbox={!isCollapsed}
                           />
@@ -397,6 +444,7 @@ export default function DocumentTreeSidebar({
                                   multiSelectedDocumentIds={multiSelectedDocumentIds}
                                   onDocumentSelect={onDocumentSelect}
                                   onDocumentMultiSelect={onDocumentMultiSelect}
+                                  onDocumentsLoaded={handleDocumentsLoaded}
                                 />
                               </motion.div>
                             )}

@@ -107,11 +107,11 @@ function DashboardContent() {
   };
 
   return (
-    <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900 transition-colors duration-200">
+    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700 transition-colors duration-200">
       <Navbar />
 
-      {/* Gradient Header */}
-      <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-primary-600 dark:from-primary-800 dark:via-primary-700 dark:to-primary-800">
+      {/* Gradient Header - Brand Colors */}
+      <div className="bg-gradient-to-br from-brand-navy-500 via-brand-cyan-400 to-brand-coral-500 dark:from-brand-navy-600 dark:via-brand-cyan-500 dark:to-brand-coral-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="animate-fade-in">
             <h1 className="text-3xl font-poppins font-bold text-white mb-2">

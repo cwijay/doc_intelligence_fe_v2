@@ -5,8 +5,8 @@
   --font-inter: 'Inter', sans-serif;
   --font-poppins: 'Poppins', sans-serif;
 
-  /* Light mode colors */
-  --background: 249 250 251;
+  /* Light mode colors - using brand colors */
+  --background: 245 245 245;
   --foreground: 17 24 39;
   --card: 255 255 255;
   --card-foreground: 17 24 39;
@@ -14,20 +14,31 @@
   --muted-foreground: 100 116 139;
   --border: 226 232 240;
   --input: 226 232 240;
-  --ring: 12 140 233;
+  --ring: 76 184 196;
   --radius: 0.5rem;
+
+  /* Brand colors */
+  --brand-cyan: 76 184 196;
+  --brand-navy: 27 58 87;
+  --brand-coral: 224 120 80;
 }
 
 .dark {
-  --background: 15 23 42;
+  /* Dark mode - using brand navy as base */
+  --background: 27 58 87;
   --foreground: 241 245 249;
-  --card: 30 41 59;
+  --card: 21 46 69;
   --card-foreground: 241 245 249;
-  --muted: 51 65 85;
+  --muted: 47 119 159;
   --muted-foreground: 148 163 184;
-  --border: 51 65 85;
-  --input: 51 65 85;
-  --ring: 96 165 250;
+  --border: 47 119 159;
+  --input: 47 119 159;
+  --ring: 76 184 196;
+
+  /* Brand colors */
+  --brand-cyan: 76 184 196;
+  --brand-navy: 27 58 87;
+  --brand-coral: 224 120 80;
 }
 
 @layer base {

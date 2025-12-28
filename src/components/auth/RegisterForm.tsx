@@ -18,10 +18,11 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import PasswordRequirements, { requirements } from '@/components/ui/PasswordRequirements';
+import { PlanSelector } from '@/components/plans';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/lib/api/auth';
 import { organizationsApi } from '@/lib/api/index';
-import { extractErrorMessage } from '@/lib/api/utils/error-handling';
+import { extractErrorMessage } from '@/lib/api/utils/error-utils';
 import { RegisterRequest } from '@/types/auth';
 import { OrganizationCreateRequest, PlanType } from '@/types/api';
 
@@ -437,17 +438,13 @@ export default function RegisterForm() {
                 />
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-secondary-700">
-                    Plan Type
+                  <label className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">
+                    Select Your Plan
                   </label>
-                  <select
-                    {...register('plan_type')}
-                    className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="free">Free Plan</option>
-                    <option value="starter">Starter Plan</option>
-                    <option value="pro">Pro Plan</option>
-                  </select>
+                  <PlanSelector
+                    value={watch('plan_type') || 'free'}
+                    onChange={(planId) => setValue('plan_type', planId)}
+                  />
                 </div>
               </div>
             </div>

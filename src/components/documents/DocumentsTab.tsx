@@ -39,6 +39,10 @@ interface DocumentsTabProps {
   selectedViewFolder: string | null;
   onClearFolderSelection: () => void;
   highlightedDocumentId?: string | null;
+  // Selection state from parent (for bulk operations)
+  multiSelectedDocumentIds?: Set<string>;
+  onSelectAllDocuments?: (documentIds: string[]) => void;
+  clearDocumentMultiSelection?: () => void;
 }
 
 export default function DocumentsTab({
@@ -46,7 +50,10 @@ export default function DocumentsTab({
   onSearchChange,
   selectedViewFolder,
   onClearFolderSelection,
-  highlightedDocumentId
+  highlightedDocumentId,
+  multiSelectedDocumentIds,
+  onSelectAllDocuments,
+  clearDocumentMultiSelection,
 }: DocumentsTabProps) {
   const { user } = useAuth();
   const organizationId = user?.org_id || '';
@@ -178,6 +185,13 @@ export default function DocumentsTab({
     return filtered;
   }, [documentsData?.documents, searchTerm, selectedViewFolder]);
 
+  // Check if all documents in folder are selected (for bulk action buttons)
+  const allDocumentsSelected = useMemo(() => {
+    if (!selectedViewFolder || !filteredDocuments.length) return false;
+    if (!multiSelectedDocumentIds || multiSelectedDocumentIds.size === 0) return false;
+    return filteredDocuments.every((doc: Document) => multiSelectedDocumentIds.has(doc.id));
+  }, [selectedViewFolder, filteredDocuments, multiSelectedDocumentIds]);
+
   // Handle selection change
   const handleSelectionChange = useCallback((newSelection: Set<string>) => {
     setSelectedDocuments(newSelection);
@@ -266,6 +280,20 @@ export default function DocumentsTab({
   useEffect(() => {
     setSelectedDocuments(new Set());
   }, [selectedViewFolder]);
+
+  // Sync local selectedDocuments with global multiSelectedDocumentIds from props
+  useEffect(() => {
+    if (multiSelectedDocumentIds && multiSelectedDocumentIds.size > 0) {
+      // Filter to only include documents that are in the current filtered list
+      const validIds = new Set<string>();
+      filteredDocuments.forEach((doc: Document) => {
+        if (multiSelectedDocumentIds.has(doc.id)) {
+          validIds.add(doc.id);
+        }
+      });
+      setSelectedDocuments(validIds);
+    }
+  }, [multiSelectedDocumentIds, filteredDocuments]);
 
   // Set up chat callbacks when component mounts
   useEffect(() => {

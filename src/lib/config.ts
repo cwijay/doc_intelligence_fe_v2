@@ -42,7 +42,7 @@ export const clientConfig = {
   authEnabled: process.env.NEXT_PUBLIC_AUTH_ENABLED === 'true',
 
   // Application Information
-  appName: process.env.NEXT_PUBLIC_APP_NAME || 'Biz-To-Bricks',
+  appName: process.env.NEXT_PUBLIC_APP_NAME || 'biz2Bricks.ai',
   appVersion: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
 
   // Session Configuration

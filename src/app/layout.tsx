@@ -19,9 +19,14 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Biz-To-Bricks | Document Intelligence for Small Business",
+  title: "biz2Bricks.ai | Document Intelligence for Small Business",
   description: "AI-powered document management and intelligence platform designed for small businesses to organize, analyze, and extract insights from their documents.",
   keywords: ["document management", "small business", "AI", "document intelligence", "business automation"],
+  icons: {
+    icon: '/logo.jpg',
+    shortcut: '/logo.jpg',
+    apple: '/logo.jpg',
+  },
 };
 
 export default function RootLayout({

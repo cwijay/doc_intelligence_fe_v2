@@ -37,6 +37,9 @@ export interface UseTreeSelectionReturn {
   clearFolderMultiSelection: () => void;
   clearDocumentMultiSelection: () => void;
 
+  // Folder checkbox with auto-select documents
+  toggleFolderWithDocuments: (folderId: string, documentIds: string[]) => void;
+
   // Selection state checks
   isFolderSelected: (folderId: string) => boolean;
   isDocumentSelected: (documentId: string) => boolean;
@@ -157,6 +160,33 @@ export function useTreeSelection(): UseTreeSelectionReturn {
     }));
   }, []);
 
+  // Toggle folder checkbox with auto-select all documents in folder
+  const toggleFolderWithDocuments = useCallback((folderId: string, documentIds: string[]) => {
+    setState(prev => {
+      const isCurrentlySelected = prev.multiSelectedFolderIds.has(folderId);
+      const newFolderSet = new Set(prev.multiSelectedFolderIds);
+      const newDocSet = new Set(prev.multiSelectedDocumentIds);
+
+      if (isCurrentlySelected) {
+        // Deselect folder and its documents
+        newFolderSet.delete(folderId);
+        documentIds.forEach(id => newDocSet.delete(id));
+      } else {
+        // Select folder and all its documents
+        newFolderSet.add(folderId);
+        documentIds.forEach(id => newDocSet.add(id));
+      }
+
+      return {
+        ...prev,
+        multiSelectedFolderIds: newFolderSet,
+        multiSelectedDocumentIds: newDocSet,
+        lastSelectedId: folderId,
+        lastSelectedType: 'folder',
+      };
+    });
+  }, []);
+
   // Check if a folder is selected
   const isFolderSelected = useCallback((folderId: string) => {
     return state.multiSelectedFolderIds.has(folderId);
@@ -197,6 +227,7 @@ export function useTreeSelection(): UseTreeSelectionReturn {
     clearMultiSelection,
     clearFolderMultiSelection,
     clearDocumentMultiSelection,
+    toggleFolderWithDocuments,
     isFolderSelected,
     isDocumentSelected,
     hasMultiSelection,

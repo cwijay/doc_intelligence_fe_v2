@@ -20,7 +20,7 @@ export default async function RegisterLayout({
 
 export async function generateMetadata() {
   return {
-    title: 'Register | Biz-To-Bricks',
+    title: 'Register | biz2Bricks.ai',
     description: 'Create your account and start managing documents with AI',
     robots: 'noindex, nofollow',
     other: {

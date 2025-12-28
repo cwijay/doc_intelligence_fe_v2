@@ -47,7 +47,10 @@ export default function DocumentTreeLayout() {
     selectDocument,
     toggleFolderMultiSelect,
     toggleDocumentMultiSelect,
+    toggleFolderWithDocuments,
+    selectAllDocuments,
     clearMultiSelection,
+    clearDocumentMultiSelection,
   } = useTreeSelection();
 
   // Search state for documents
@@ -133,7 +136,7 @@ export default function DocumentTreeLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900 transition-colors duration-200">
+    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700 transition-colors duration-200">
       <Navbar />
 
       {/* Main Content Area */}
@@ -154,6 +157,7 @@ export default function DocumentTreeLayout() {
           onDocumentSelect={handleDocumentSelect}
           onFolderMultiSelect={toggleFolderMultiSelect}
           onDocumentMultiSelect={toggleDocumentMultiSelect}
+          onFolderCheckboxWithDocuments={toggleFolderWithDocuments}
           onCreateFolder={handleCreateFolder}
           customWidth={customWidth}
           onWidthChange={setCustomWidth}
@@ -210,6 +214,9 @@ export default function DocumentTreeLayout() {
               selectedViewFolder={selectedFolderId}
               onClearFolderSelection={handleClearFolderSelection}
               highlightedDocumentId={selectedDocumentId}
+              multiSelectedDocumentIds={multiSelectedDocumentIds}
+              onSelectAllDocuments={selectAllDocuments}
+              clearDocumentMultiSelection={clearDocumentMultiSelection}
             />
           </div>
         </main>

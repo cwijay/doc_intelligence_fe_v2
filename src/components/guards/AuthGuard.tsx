@@ -10,12 +10,12 @@ interface AuthGuardProps {
   fallbackPath?: string;
 }
 
-export default function AuthGuard({ 
-  children, 
+export default function AuthGuard({
+  children,
   requireAuth = true,
   fallbackPath = '/register'
 }: AuthGuardProps) {
-  const { isAuthenticated, isLoading, user, isSessionExpired, logout, getTimeUntilExpiry } = useAuth();
+  const { isAuthenticated, isLoading, user, isSessionExpired, logout } = useAuth();
   const router = useRouter();
 
   // Debug logging
@@ -30,41 +30,28 @@ export default function AuthGuard({
   });
 
   useEffect(() => {
-    console.log('🛡️ AuthGuard useEffect:', { 
-      isLoading, 
-      requireAuth, 
+    console.log('🛡️ AuthGuard useEffect:', {
+      isLoading,
+      requireAuth,
       isAuthenticated,
       isSessionExpired: isSessionExpired(),
       user: !!user,
       pathname: window.location.pathname
     });
-    
+
     if (!isLoading) {
-      // More defensive session expiration check
+      // Session truly expired (both access AND refresh tokens expired)
       if (isAuthenticated && user && isSessionExpired()) {
-        console.log('🚫 AuthGuard: Session expired, performing automatic logout...');
-        console.log('🔍 AuthGuard: Session debug info:', {
-          hasUser: !!user,
-          userEmail: user?.email,
-          timeUntilExpiry: getTimeUntilExpiry(),
-          isSessionExpiredCheck: isSessionExpired()
-        });
-        
-        // Only logout if we have a valid logout function and the session is truly expired
-        if (logout && getTimeUntilExpiry() <= 0) {
+        console.log('🚫 AuthGuard: Session fully expired (access + refresh), logging out...');
+        if (logout) {
           logout().then(() => {
-            console.log('✅ AuthGuard: Automatic logout completed, redirecting to:', fallbackPath);
+            console.log('✅ AuthGuard: Logout completed, redirecting to:', fallbackPath);
             router.push(fallbackPath);
           }).catch((error) => {
-            console.error('❌ AuthGuard: Automatic logout failed:', error);
-            // Still redirect even if logout fails
+            console.error('❌ AuthGuard: Logout failed:', error);
             router.push(fallbackPath);
           });
-        } else if (getTimeUntilExpiry() > 0) {
-          // False positive - token is not actually expired yet
-          console.log('⚠️ AuthGuard: False session expiration detected, token still valid for:', getTimeUntilExpiry(), 'ms');
         } else {
-          console.log('🚫 AuthGuard: No logout function available, redirecting to:', fallbackPath);
           router.push(fallbackPath);
         }
       } else if (requireAuth && !isAuthenticated) {
@@ -77,7 +64,7 @@ export default function AuthGuard({
         console.log('✅ AuthGuard: Authentication state is correct');
       }
     }
-  }, [isAuthenticated, isLoading, requireAuth, fallbackPath, router, isSessionExpired, logout, user, getTimeUntilExpiry]);
+  }, [isAuthenticated, isLoading, requireAuth, fallbackPath, router, isSessionExpired, logout, user]);
 
   // Show loading state while checking authentication
   if (isLoading) {

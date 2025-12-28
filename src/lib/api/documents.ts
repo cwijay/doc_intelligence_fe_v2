@@ -16,7 +16,7 @@ import {
   DuplicateFileErrorDetail,
 } from '@/types/api';
 import { authService } from '../auth';
-import { extractErrorMessage } from './utils/error-handling';
+import { extractErrorMessage } from './utils/error-utils';
 
 /**
  * Result type for upload operations - avoids throwing errors which trigger Next.js error overlay
