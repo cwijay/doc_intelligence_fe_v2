@@ -68,6 +68,15 @@ export const API_ENDPOINTS = {
   SIMPLE_RAG: '/api/v1/simple-rag',
   INGEST: '/api/v1/ingest',
   DOCUMENT_CHAT: '/api/v1/documents/chat',
+  // Extraction endpoints
+  EXTRACTION: {
+    ANALYZE: '/api/v1/extraction/analyze',
+    GENERATE_SCHEMA: '/api/v1/extraction/generate-schema',
+    TEMPLATES: '/api/v1/extraction/templates',
+    EXTRACT: '/api/v1/extraction/extract',
+    SAVE: '/api/v1/extraction/save',
+    EXPORT: '/api/v1/extraction/export',
+  },
 } as const;
 
 // =============================================================================
@@ -81,6 +90,8 @@ export const TIMEOUTS = {
   AUTH_API: 120000,
   /** Excel chat operations (10 minutes) */
   EXCEL_CHAT: 600000,
+  /** Document parsing operations (10 minutes) - LlamaParse can be slow */
+  PARSE_API: 600000,
   /** RAG API operations (2 minutes) */
   RAG_API: 120000,
   /** Base API operations (2 minutes) */

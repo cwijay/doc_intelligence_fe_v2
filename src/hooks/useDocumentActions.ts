@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Document, DocumentParseResponse } from '@/types/api';
 import { documentsApi, foldersApi, organizationsApi } from '@/lib/api/index';
 import { ingestionApi, saveAndIndexDocument } from '@/lib/api/ingestion';
-import { adaptIngestParseResponse, isConnectionError } from '@/lib/api/utils/parse-adapter';
+import { adaptIngestParseResponse } from '@/lib/api/utils/parse-adapter';
 import { fileUtils } from '@/lib/file-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { clientConfig } from '@/lib/config';
@@ -130,31 +130,20 @@ export function useDocumentActions(): UseDocumentActionsReturn {
         }
       }
 
-      // Try Ingest API first (port 8001)
-      try {
-        console.log('📄 Attempting parse via Ingest API...');
-        const ingestResponse = await ingestionApi.parseDocument(
-          document,
-          orgName,
-          folderName,
-          { outputFormat: 'markdown', saveToParsed: true }
-        );
+      // Use Ingest API (port 8001) for document parsing with LlamaParse
+      console.log('📄 Parsing document via Ingest API...');
+      const ingestResponse = await ingestionApi.parseDocument(
+        document,
+        orgName,
+        folderName,
+        { outputFormat: 'markdown', saveToParsed: true }
+      );
 
-        // Adapt response to DocumentParseResponse format
-        const filePath = `${orgName}/original/${folderName || 'default'}/${document.name}`;
-        parseResponse = adaptIngestParseResponse(ingestResponse, filePath);
+      // Adapt response to DocumentParseResponse format
+      const filePath = `${orgName}/original/${folderName || 'default'}/${document.name}`;
+      parseResponse = adaptIngestParseResponse(ingestResponse, filePath);
 
-        console.log('✅ Ingest API parse successful');
-      } catch (ingestError) {
-        // Check if it's a connection error - if so, try fallback
-        if (isConnectionError(ingestError)) {
-          console.warn('⚠️ Ingest API unavailable, falling back to Main API...');
-          parseResponse = await documentsApi.parseDocument(document, folderName);
-        } else {
-          // Re-throw non-connection errors
-          throw ingestError;
-        }
-      }
+      console.log('✅ Ingest API parse successful');
 
       // Update toast to show success with statistics
       toast.success(

@@ -10,8 +10,6 @@ import {
   DocumentList,
   DocumentFilters,
   DocumentUploadResponse,
-  DocumentParseResponse,
-  DocumentParseRequest,
   DocumentDeleteResponse,
   DuplicateFileErrorDetail,
 } from '@/types/api';
@@ -233,73 +231,6 @@ export const documentsApi = {
   },
 
   /**
-   * Parse a document's content
-   */
-  parseDocument: async (document: Document, folderName?: string): Promise<DocumentParseResponse> => {
-    const currentUser = authService.getUser();
-    if (!currentUser) {
-      throw new Error('No authenticated user found. Please login first.');
-    }
-
-    if (!currentUser.org_name || currentUser.org_name.trim() === '') {
-      throw new Error('User organization information not available.');
-    }
-
-    const storagePath = constructStoragePath(document, currentUser.org_name, folderName);
-
-    try {
-      const requestData: DocumentParseRequest = {
-        storage_path: storagePath,
-      };
-
-      const response: AxiosResponse<DocumentParseResponse> = await api.post(
-        '/documents/parse',
-        requestData
-      );
-
-      if (!response.data.success) {
-        throw new Error('Document parsing failed - check document format and try again');
-      }
-
-      if (!response.data.parsed_content) {
-        throw new Error('Document parsing completed but no content was extracted');
-      }
-
-      return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        const status = error.response.status;
-        const errorData = error.response.data;
-
-        switch (status) {
-          case 404:
-            throw new Error(
-              `Document not found in storage: ${storagePath}. Please verify the file exists.`
-            );
-          case 400:
-            throw new Error(
-              `Invalid file format: ${errorData?.detail || 'Only PDF and XLSX files are supported.'}`
-            );
-          case 500:
-            throw new Error(
-              `Server error during parsing: ${errorData?.detail || 'Please try again later.'}`
-            );
-          case 401:
-          case 403:
-            throw new Error('Authentication failed. Please log in again.');
-          default:
-            throw new Error(
-              `Parse API error (${status}): ${errorData?.detail || error.message || 'Unknown error'}`
-            );
-        }
-      } else if (error.request) {
-        throw new Error('Network error: Unable to connect to the parsing service.');
-      }
-      throw error;
-    }
-  },
-
-  /**
    * Delete a document by ID
    */
   delete: async (documentId: string): Promise<DocumentDeleteResponse> => {
@@ -336,12 +267,5 @@ export const documentsApi = {
       }
       throw error;
     }
-  },
-
-  /**
-   * Alias for parseDocument (backward compatibility)
-   */
-  parse: async (document: Document, folderName?: string): Promise<DocumentParseResponse> => {
-    return documentsApi.parseDocument(document, folderName);
   },
 };

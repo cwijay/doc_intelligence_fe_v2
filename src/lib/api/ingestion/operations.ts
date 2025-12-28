@@ -5,7 +5,7 @@ import { AxiosResponse } from 'axios';
 import { ingestApi } from './clients';
 import { clientConfig } from '../../config';
 import { mergeMetadata } from '../../content-metadata';
-import { STORAGE_PATHS, FILE_EXTENSIONS } from '@/lib/constants';
+import { STORAGE_PATHS, FILE_EXTENSIONS, TIMEOUTS } from '@/lib/constants';
 import {
   IngestRequest,
   IngestResponse,
@@ -240,7 +240,10 @@ export const ingestionApi = {
 
       console.log('📤 Ingest parse request:', requestData);
 
-      const response: AxiosResponse<IngestParseResponse> = await ingestApi.post('/parse', requestData);
+      // Use longer timeout for parsing - LlamaParse can take several minutes for large documents
+      const response: AxiosResponse<IngestParseResponse> = await ingestApi.post('/parse', requestData, {
+        timeout: TIMEOUTS.PARSE_API
+      });
 
       if (!response.data.success) {
         throw new Error(response.data.error || 'Document parsing failed');
