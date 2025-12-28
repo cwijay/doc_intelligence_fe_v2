@@ -19,6 +19,7 @@ export interface DocumentCardProps {
   onFaq?: (count?: number) => void;
   onQuestions?: (count?: number) => void;
   onChat?: () => void;
+  onAnalyse?: () => void;
   isProcessing?: ProcessingState;
   viewMode?: 'grid' | 'list' | 'compact';
   className?: string;

@@ -14,6 +14,7 @@ import {
   QuestionMarkCircleIcon,
   AcademicCapIcon,
   ChatBubbleLeftIcon,
+  ChartBarIcon,
   CheckCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon,
@@ -21,6 +22,7 @@ import {
 import { Document, DocumentStatus } from '@/types/api';
 import { getFileTypeInfo, formatFileSize } from '@/lib/file-types';
 import { isDocumentParsed } from '@/lib/document-utils';
+import { isSpreadsheetFile } from '@/lib/file-utils';
 import Button from '@/components/ui/Button';
 
 interface DocumentTableViewProps {
@@ -38,6 +40,7 @@ interface DocumentTableViewProps {
   onFaq?: (document: Document, count?: number) => void;
   onQuestions?: (document: Document, count?: number) => void;
   onChat?: (document: Document) => void;
+  onAnalyse?: (document: Document) => void;
   parsingDocuments?: Set<string>;
   summarizingDocuments?: Set<string>;
   faqGeneratingDocuments?: Set<string>;
@@ -248,6 +251,7 @@ export default function DocumentTableView({
   onFaq,
   onQuestions,
   onChat,
+  onAnalyse,
   parsingDocuments = new Set(),
   summarizingDocuments = new Set(),
   faqGeneratingDocuments = new Set(),
@@ -613,6 +617,16 @@ export default function DocumentTableView({
                           disabled={!isParsed}
                           colorClass="text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
                         />
+
+                        {/* Analyse (Spreadsheets only) */}
+                        {onAnalyse && isSpreadsheetFile(document) && (
+                          <ActionButton
+                            icon={ChartBarIcon}
+                            label="Analyse spreadsheet data"
+                            onClick={() => onAnalyse(document)}
+                            colorClass="text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400"
+                          />
+                        )}
                       </div>
                     </td>
                   </motion.tr>

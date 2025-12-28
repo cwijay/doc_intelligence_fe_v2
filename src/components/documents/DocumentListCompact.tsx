@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   DocumentTextIcon,
   EllipsisVerticalIcon,
   ArrowDownTrayIcon,
@@ -12,6 +12,7 @@ import {
   CpuChipIcon,
   QuestionMarkCircleIcon,
   ChatBubbleLeftIcon,
+  ChartBarIcon,
   AcademicCapIcon,
   ChevronDownIcon,
   SparklesIcon,
@@ -31,9 +32,9 @@ import {
   addToRecentCounts,
   getRecentCounts
 } from '@/lib/generation-preferences';
-import { 
-  canPerformAIOperations, 
-  getDocumentParseStatusMessage, 
+import {
+  canPerformAIOperations,
+  getDocumentParseStatusMessage,
   getEffectiveDocumentStatus,
   canPerformSummaryOperations,
   getDocumentSummaryStatusMessage,
@@ -46,6 +47,7 @@ import {
   isDocumentQuestionsGenerated,
   isDocumentParsed
 } from '@/lib/document-utils';
+import { isSpreadsheetFile } from '@/lib/file-utils';
 
 interface DocumentListCompactProps {
   documents: Document[];
@@ -60,6 +62,7 @@ interface DocumentListCompactProps {
   onFaq?: (document: Document, count?: number) => void;
   onQuestions?: (document: Document, count?: number) => void;
   onChat?: (document: Document) => void;
+  onAnalyse?: (document: Document) => void;
   parsingDocuments?: Set<string>;
   summarizingDocuments?: Set<string>;
   faqGeneratingDocuments?: Set<string>;
@@ -117,6 +120,7 @@ export default function DocumentListCompact({
   onFaq,
   onQuestions,
   onChat,
+  onAnalyse,
   parsingDocuments = new Set(),
   summarizingDocuments = new Set(),
   faqGeneratingDocuments = new Set(),
@@ -587,7 +591,18 @@ export default function DocumentListCompact({
                         <ChatBubbleLeftIcon className="w-4 h-4 text-gray-400" />
                       </button>
                     )}
-                    
+
+                    {/* Analyse Button (Spreadsheets only) */}
+                    {onAnalyse && isSpreadsheetFile(document) && (
+                      <button
+                        onClick={() => onAnalyse(document)}
+                        className="p-1.5 rounded hover:bg-green-50 transition-colors"
+                        title="Analyse spreadsheet data"
+                      >
+                        <ChartBarIcon className="w-4 h-4 text-green-600 hover:text-green-700" />
+                      </button>
+                    )}
+
                     {/* View Button */}
                     {onView && (
                       <button

@@ -240,6 +240,12 @@ export default function DocumentsTab({
     }
   }, [selectedDocuments, filteredDocuments, documentActions]);
 
+  // Handle single document analysis (for spreadsheets)
+  const handleAnalyse = useCallback((document: Document) => {
+    console.log('📊 DocumentsTab: handleAnalyse called for:', document.name);
+    excelChat.openChat([document]);
+  }, [excelChat]);
+
   // Handle bulk chat
   const handleBulkChat = useCallback(() => {
     if (selectedDocuments.size === 0) return;
@@ -598,6 +604,7 @@ export default function DocumentsTab({
           onFaq={(doc, count) => documentAI.handleFaq(doc, count || 10)}
           onQuestions={(doc, count) => documentAI.handleQuestions(doc, count || 10)}
           onChat={documentActions.handleChat}
+          onAnalyse={handleAnalyse}
           parsingDocuments={documentActions.parsingDocuments}
           summarizingDocuments={documentAI.summarizingDocuments}
           faqGeneratingDocuments={documentAI.faqGeneratingDocuments}
@@ -653,6 +660,7 @@ export default function DocumentsTab({
               onFaq={(doc) => documentAI.handleFaq(doc, 5)}
               onQuestions={(doc) => documentAI.handleQuestions(doc, 5)}
               onChat={documentActions.handleChat}
+              onAnalyse={handleAnalyse}
               parsingDocuments={documentActions.parsingDocuments}
               selectedDocuments={selectedDocuments}
               onSelectionChange={handleSelectionChange}

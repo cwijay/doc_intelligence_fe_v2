@@ -46,6 +46,7 @@ export default function DocumentCard({
   onFaq,
   onQuestions,
   onChat,
+  onAnalyse,
   isProcessing = {},
   viewMode = 'grid',
   className,
@@ -403,6 +404,7 @@ export default function DocumentCard({
             onFaq={onFaq ? handleFaqClick : undefined}
             onQuestions={onQuestions ? handleQuestionsClick : undefined}
             onChat={onChat}
+            onAnalyse={onAnalyse}
             onView={onView}
             onDownload={onDownload}
             onDelete={onDelete ? () => setShowDeleteConfirm(true) : undefined}

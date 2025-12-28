@@ -2,9 +2,99 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document } from '@/types/api';
-import { excelApiService, ChatMessage, ChatSession, ExcelChatResponse } from '@/lib/api/excel';
+import { excelApiService, ChatMessage, ChatSession, SheetsAnalyzeResponse } from '@/lib/api/excel';
 import { fileUtils } from '@/lib/file-utils';
 import toast from 'react-hot-toast';
+
+/**
+ * Parse structured API response that may be in Python-style format
+ * Extracts text content from response like:
+ * [{'type': 'reasoning', ...}, {'type': 'text', 'text': 'actual content...', ...}]
+ */
+function parseApiResponse(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return content || '';
+  }
+
+  const trimmed = content.trim();
+
+  // Check if this looks like a Python/JSON array of content blocks
+  if (trimmed.startsWith('[') && trimmed.includes("'type':")) {
+    try {
+      // Extract text from text blocks using regex
+      // Pattern: find text after 'text': ' and before ', 'annotations' or similar ending
+
+      // The text content is between 'text': ' and ', 'annotations'
+      // We need to handle the full pattern carefully
+
+      const textBlocks: string[] = [];
+
+      // Split by type markers to find text blocks
+      const typeTextPattern = /'type':\s*'text'/g;
+      let match;
+      let lastIndex = 0;
+      const indices: number[] = [];
+
+      while ((match = typeTextPattern.exec(trimmed)) !== null) {
+        indices.push(match.index);
+      }
+
+      for (const idx of indices) {
+        // Find the 'text': ' part after this type marker
+        const afterType = trimmed.substring(idx);
+        const textKeyMatch = afterType.match(/'text':\s*'/);
+
+        if (textKeyMatch && textKeyMatch.index !== undefined) {
+          const contentStart = idx + textKeyMatch.index + textKeyMatch[0].length;
+
+          // Now find the end - look for ', 'annotations' or ', "annotations"
+          // The content could contain \n, |, etc.
+          const remaining = trimmed.substring(contentStart);
+
+          // Find the pattern that ends the text value
+          // It should be: ', 'annotations' or similar
+          // We need to find the LAST occurrence of the closing pattern before the next block
+
+          // Look for the closing quote followed by comma and annotations
+          const endPatterns = [
+            "', 'annotations'",
+            '\', "annotations"',
+            "', 'id':",  // fallback if no annotations
+          ];
+
+          let endIdx = -1;
+          for (const pattern of endPatterns) {
+            const idx = remaining.indexOf(pattern);
+            if (idx !== -1 && (endIdx === -1 || idx < endIdx)) {
+              endIdx = idx;
+            }
+          }
+
+          if (endIdx !== -1) {
+            const textContent = remaining.substring(0, endIdx);
+            // Unescape the content
+            const unescaped = textContent
+              .replace(/\\n/g, '\n')
+              .replace(/\\t/g, '\t')
+              .replace(/\\'/g, "'")
+              .replace(/\\"/g, '"')
+              .replace(/\\\\/g, '\\');
+            textBlocks.push(unescaped);
+          }
+        }
+      }
+
+      if (textBlocks.length > 0) {
+        return textBlocks.join('\n\n');
+      }
+    } catch (e) {
+      console.warn('Failed to parse structured API response:', e);
+    }
+  }
+
+  // Return original content if not a structured response or parsing failed
+  return content;
+}
 
 interface UseExcelChatReturn {
   // Modal state
@@ -196,44 +286,40 @@ export function useExcelChat(): UseExcelChatReturn {
       );
       
       // Log the full response structure for debugging
-      console.log('📊 Excel API raw response:', {
+      console.log('📊 Sheets API raw response:', {
         response: response,
         responseType: typeof response,
-        hasStatus: 'status' in response,
-        statusValue: response.status,
+        hasSuccess: 'success' in response,
+        successValue: response.success,
         hasResponse: 'response' in response,
         hasMessage: 'message' in response,
         hasError: 'error' in response,
         responseKeys: response ? Object.keys(response) : []
       });
-      
+
       // Validate response structure
       if (!response || typeof response !== 'object') {
-        throw new Error(`Invalid response from Excel agent: ${typeof response}`);
+        throw new Error(`Invalid response from Sheets agent: ${typeof response}`);
       }
-      
-      // Check for success conditions - be flexible with status values
-      // Cast status to string to handle various API response formats
-      const statusStr = response.status as string;
-      const isSuccessResponse =
-        statusStr === 'success' ||
-        statusStr === 'completed' ||
-        statusStr === 'ok' ||
-        (!response.status && (response.response || response.message));
 
-      // Check for explicit error conditions
-      const isErrorResponse =
-        statusStr === 'error' ||
-        statusStr === 'failed' ||
-        statusStr === 'failure' ||
-        response.error;
-      
+      // Convert processing time from ms to seconds for display
+      const processingTimeSeconds = response.processing_time_ms
+        ? response.processing_time_ms / 1000
+        : undefined;
+
+      // Check for success using the 'success' boolean field
+      const isSuccessResponse = response.success === true;
+      const isErrorResponse = response.success === false || !!response.error;
+
       if (isSuccessResponse && !isErrorResponse) {
         // Handle successful response - provide fallback content if response is empty
-        const responseContent = response.response || 
-          response.message || 
+        const rawContent = response.response ||
+          response.message ||
           'Analysis completed successfully, but no detailed response was provided.';
-        
+
+        // Parse structured response (handles Python-style array format from API)
+        const responseContent = parseApiResponse(rawContent);
+
         // Add assistant response
         const assistantMessage: ChatMessage = {
           id: `msg-${Date.now()}-assistant`,
@@ -241,44 +327,44 @@ export function useExcelChat(): UseExcelChatReturn {
           content: responseContent,
           timestamp: new Date(),
           metadata: {
-            files_analyzed: response.files_analyzed,
-            processing_time: response.processing_time_seconds,
-            tokens_used: response.tokens_used,
+            files_processed: response.files_processed,
+            processing_time_ms: response.processing_time_ms,
+            token_usage: response.token_usage,
             tools_used: response.tools_used,
           }
         };
-        
+
         setMessages(prev => [...prev, assistantMessage]);
-        
+
         // Update session
         setCurrentSession(prev => prev ? {
           ...prev,
           messages: [...prev.messages, userMessage, assistantMessage],
           last_activity: new Date(),
         } : null);
-        
-        console.log('✅ Excel chat response received:', {
+
+        console.log('✅ Sheets analysis response received:', {
           responseLength: responseContent.length,
-          processingTime: response.processing_time_seconds,
-          tokensUsed: response.tokens_used?.total_tokens,
-          filesAnalyzed: response.files_analyzed?.length,
+          processingTimeMs: response.processing_time_ms,
+          tokensUsed: response.token_usage?.total_tokens,
+          filesProcessed: response.files_processed?.length,
           hasResponseContent: !!response.response,
-          detectedStatus: response.status || 'no-status'
+          success: response.success
         });
-        
+
         // Show success toast with processing info
-        if (response.processing_time_seconds && response.tokens_used) {
+        if (processingTimeSeconds && response.token_usage) {
           toast.success(
-            `Analysis completed in ${response.processing_time_seconds.toFixed(1)}s` + 
-            ` - Used ${response.tokens_used.total_tokens} tokens to analyze ${response.files_analyzed?.length || currentDocuments.length} file(s)`
+            `Analysis completed in ${processingTimeSeconds.toFixed(1)}s` +
+            ` - Used ${response.token_usage.total_tokens} tokens to analyze ${response.files_processed?.length || currentDocuments.length} file(s)`
           );
         }
-        
+
       } else if (isErrorResponse) {
         // Handle explicit error responses
         const errorMessage = response.error || response.message || 'Failed to analyze spreadsheet data';
-        console.error('❌ Excel API returned error:', {
-          status: response.status,
+        console.error('❌ Sheets API returned error:', {
+          success: response.success,
           error: response.error,
           message: response.message,
           details: response.details
@@ -287,20 +373,21 @@ export function useExcelChat(): UseExcelChatReturn {
       } else {
         // Handle truly unexpected response format with detailed information
         const responseInfo = {
-          status: response.status,
+          success: response.success,
           hasResponse: !!response.response,
           hasMessage: !!response.message,
           hasError: !!response.error,
           responseKeys: Object.keys(response),
           response: response
         };
-        
-        console.error('❌ Unexpected Excel API response format:', responseInfo);
-        
+
+        console.error('❌ Unexpected Sheets API response format:', responseInfo);
+
         // Try to extract any useful content as a fallback
         if (response.response || response.message) {
           console.warn('⚠️ Attempting to use response content despite unexpected format');
-          const fallbackContent = (response.response || response.message) as string;
+          const rawFallback = (response.response || response.message) as string;
+          const fallbackContent = parseApiResponse(rawFallback);
 
           const assistantMessage: ChatMessage = {
             id: `msg-${Date.now()}-assistant`,
@@ -308,22 +395,22 @@ export function useExcelChat(): UseExcelChatReturn {
             content: fallbackContent,
             timestamp: new Date(),
             metadata: {
-              files_analyzed: response.files_analyzed,
-              processing_time: response.processing_time_seconds,
-              tokens_used: response.tokens_used,
+              files_processed: response.files_processed,
+              processing_time_ms: response.processing_time_ms,
+              token_usage: response.token_usage,
               tools_used: response.tools_used,
             }
           };
-          
+
           setMessages(prev => [...prev, assistantMessage]);
-          
+
           // Show warning toast
           toast('Response received with unexpected format, but content was extracted', { icon: '⚠️' });
           return;
         }
-        
+
         throw new Error(
-          `Unexpected response format from Excel agent. Status: "${response.status}", Available keys: ${Object.keys(response).join(', ')}`
+          `Unexpected response format from Sheets agent. Success: "${response.success}", Available keys: ${Object.keys(response).join(', ')}`
         );
       }
       

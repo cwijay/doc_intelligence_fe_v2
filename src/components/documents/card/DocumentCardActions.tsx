@@ -9,6 +9,7 @@ import {
   QuestionMarkCircleIcon,
   AcademicCapIcon,
   ChatBubbleLeftIcon,
+  ChartBarIcon,
   EyeIcon,
   ArrowDownTrayIcon,
   TrashIcon,
@@ -21,6 +22,7 @@ import {
   isDocumentQuestionsGenerated,
   canPerformAIOperations,
 } from '@/lib/document-utils';
+import { isSpreadsheetFile } from '@/lib/file-utils';
 import { ProcessingState } from './types';
 
 interface ActionItem {
@@ -42,6 +44,7 @@ interface DocumentCardActionsProps {
   onFaq?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onQuestions?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onChat?: () => void;
+  onAnalyse?: () => void;
   onView?: () => void;
   onDownload?: () => void;
   onDelete?: () => void;
@@ -55,6 +58,7 @@ export function DocumentCardActions({
   onFaq,
   onQuestions,
   onChat,
+  onAnalyse,
   onView,
   onDownload,
   onDelete,
@@ -145,6 +149,21 @@ export function DocumentCardActions({
       },
       color: 'text-indigo-500',
       bgColor: 'hover:bg-indigo-50',
+    });
+  }
+
+  // Analyse action - only for spreadsheet files (Excel/CSV)
+  if (onAnalyse && isSpreadsheetFile(document)) {
+    primaryActions.push({
+      icon: ChartBarIcon,
+      label: 'Analyse',
+      onClick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onAnalyse();
+      },
+      color: 'text-green-600',
+      bgColor: 'hover:bg-green-50',
     });
   }
 

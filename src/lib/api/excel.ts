@@ -3,46 +3,56 @@ import { Document } from '@/types/api';
 import { authService } from '../auth';
 import { clientConfig } from '../config';
 
-// Excel Agent API Base URL from environment configuration
-const EXCEL_API_BASE_URL = clientConfig.excelApiUrl;
+// Sheets Agent API Base URL from environment configuration
+// Uses the AI API base URL where the SheetsAgent is hosted
+const SHEETS_API_BASE_URL = clientConfig.aiApiBaseUrl;
 
-// Create dedicated axios instance for Excel agent
-const excelApi = axios.create({
-  baseURL: EXCEL_API_BASE_URL,
+// Create dedicated axios instance for Sheets agent
+const sheetsApi = axios.create({
+  baseURL: SHEETS_API_BASE_URL,
   timeout: 600000, // 10 minutes for complex analysis
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add authentication interceptor
-excelApi.interceptors.request.use(
+// Add authentication and organization interceptor
+sheetsApi.interceptors.request.use(
   (config) => {
     const token = authService.getAccessToken();
+    const user = authService.getUser();
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('📊 Excel API Request:', {
-        url: config.url,
-        method: config.method,
-        baseURL: config.baseURL,
-        hasToken: !!token,
-        tokenPreview: token ? `${token.substring(0, 20)}...` : 'none'
-      });
     } else {
-      console.warn('⚠️ Excel API Request: No access token found');
+      console.warn('⚠️ Sheets API Request: No access token found');
     }
+
+    // Add organization header for multi-tenancy
+    if (user?.org_id) {
+      config.headers['X-Organization-ID'] = user.org_id;
+    }
+
+    console.log('📊 Sheets API Request:', {
+      url: config.url,
+      method: config.method,
+      baseURL: config.baseURL,
+      hasToken: !!token,
+      orgId: user?.org_id || 'none'
+    });
+
     return config;
   },
   (error) => {
-    console.error('❌ Excel API Request Error:', error);
+    console.error('❌ Sheets API Request Error:', error);
     return Promise.reject(error);
   }
 );
 
 // Response interceptor for error handling
-excelApi.interceptors.response.use(
+sheetsApi.interceptors.response.use(
   (response) => {
-    console.log('✅ Excel API Success:', {
+    console.log('✅ Sheets API Success:', {
       status: response.status,
       url: response.config.url,
       dataSize: JSON.stringify(response.data).length
@@ -50,7 +60,7 @@ excelApi.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('❌ Excel API Error:', {
+    console.error('❌ Sheets API Error:', {
       status: error.response?.status,
       statusText: error.response?.statusText,
       message: error.response?.data?.message || error.message,
@@ -62,20 +72,20 @@ excelApi.interceptors.response.use(
       isAuthError: error.response?.status === 401,
       isServerDown: !error.response && error.code === 'ECONNREFUSED'
     });
-    
+
     // Handle specific error cases
     if (!error.response && error.code === 'ECONNREFUSED') {
-      console.error('🚫 Excel API Server appears to be down or unreachable at:', EXCEL_API_BASE_URL);
+      console.error('🚫 Sheets API Server appears to be down or unreachable at:', SHEETS_API_BASE_URL);
     } else if (error.response?.status === 401) {
-      console.error('🔑 Excel API Authentication failed - token may be invalid or expired');
+      console.error('🔑 Sheets API Authentication failed - token may be invalid or expired');
     }
-    
+
     return Promise.reject(error);
   }
 );
 
-// Types for Excel Chat API
-export interface ExcelChatRequest {
+// Types for Sheets Analysis API (matching backend SheetsAgent schemas)
+export interface SheetsAnalyzeRequest {
   file_paths: string[];
   query: string;
   session_id?: string;
@@ -86,19 +96,23 @@ export interface ExcelChatRequest {
   };
 }
 
-export interface FileAnalysisInfo {
-  name: string;
-  gcs_path: string;
-  size_bytes: number;
-  format: 'xlsx' | 'xls' | 'csv';
-  columns: string[];
-  row_count: number;
-  processing_time_seconds: number;
+export interface FileMetadata {
+  file_path: string;
+  file_type: string;
+  source?: string;
+  size_bytes?: number;
+  rows?: number;
+  columns?: number;
+  column_names?: string[];
+  sheet_names?: string[];
+  processing_time_ms?: number;
+  shape?: number[];
 }
 
 export interface ToolUsageInfo {
   tool_name: string;
-  execution_time_seconds: number;
+  execution_time_ms?: number;
+  execution_time_seconds?: number;
   success: boolean;
   error_message?: string;
 }
@@ -107,23 +121,28 @@ export interface TokenUsageInfo {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  estimated_cost_usd?: number;
 }
 
-export interface ExcelChatResponse {
-  status: 'success' | 'error';
+export interface SheetsAnalyzeResponse {
+  success: boolean;
+  message?: string;
   response?: string;
-  files_analyzed?: FileAnalysisInfo[];
-  agent_metadata?: Record<string, any>;
+  files_processed?: FileMetadata[];
   tools_used?: ToolUsageInfo[];
-  processing_time_seconds?: number;
-  tokens_used?: TokenUsageInfo;
+  token_usage?: TokenUsageInfo;
   session_id?: string;
+  processing_time_ms?: number;
   timestamp?: string;
   // Error fields
   error?: string;
-  message?: string;
   details?: Record<string, any>;
 }
+
+// Legacy type aliases for backward compatibility
+export type ExcelChatRequest = SheetsAnalyzeRequest;
+export type ExcelChatResponse = SheetsAnalyzeResponse;
+export type FileAnalysisInfo = FileMetadata;
 
 export interface ChatMessage {
   id: string;
@@ -131,9 +150,9 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   metadata?: {
-    files_analyzed?: FileAnalysisInfo[];
-    processing_time?: number;
-    tokens_used?: TokenUsageInfo;
+    files_processed?: FileMetadata[];
+    processing_time_ms?: number;
+    token_usage?: TokenUsageInfo;
     tools_used?: ToolUsageInfo[];
   };
 }
@@ -159,8 +178,9 @@ export const constructGCSPath = (document: Document): string => {
     storagePath = document.path;
   } else {
     // Construct path based on document metadata
-    // Format: organization/original/folder/filename
-    const orgName = document.organization_id || 'default';
+    // Format: {org_name}/original/{folder_name}/{filename}
+    const user = authService.getUser();
+    const orgName = user?.org_name || 'default';
     const folderName = document.folder_name || 'default';
     storagePath = `${orgName}/original/${folderName}/${document.name}`;
   }
@@ -174,10 +194,12 @@ export const constructGCSPath = (document: Document): string => {
   console.log('🔗 Constructed GCS path:', {
     documentName: document.name,
     documentId: document.id,
+    folderName: document.folder_name,
     gcsPath: storagePath,
     originalStoragePath: document.storage_path,
     originalGcsPath: document.gcs_path,
-    originalPath: document.path
+    originalPath: document.path,
+    userOrgName: authService.getUser()?.org_name
   });
   
   return storagePath;
@@ -208,39 +230,39 @@ export const generateSessionId = (): string => {
   return `excel-chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// Main Excel chat function
-export const chatWithExcel = async (
+// Main Sheets analysis function - calls /api/v1/sheets/analyze endpoint
+export const analyzeSheets = async (
   documents: Document[],
   query: string,
   sessionId?: string,
-  options?: ExcelChatRequest['options']
-): Promise<ExcelChatResponse> => {
+  options?: SheetsAnalyzeRequest['options']
+): Promise<SheetsAnalyzeResponse> => {
   try {
     // Validate inputs
     if (!documents.length) {
       throw new Error('At least one document is required');
     }
-    
+
     if (!validateQuery(query)) {
       throw new Error('Query must be at least 3 characters long');
     }
-    
+
     // Validate all documents are Excel/CSV
     const invalidDocs = documents.filter(doc => !validateExcelFile(doc));
     if (invalidDocs.length > 0) {
       throw new Error(`Invalid file types detected: ${invalidDocs.map(d => d.name).join(', ')}. Only Excel (.xlsx, .xls) and CSV files are supported.`);
     }
-    
+
     // Construct GCS paths
     const file_paths = documents.map(constructGCSPath);
-    
+
     // Validate GCS paths
     const invalidPaths = file_paths.filter(path => !validateGCSPath(path));
     if (invalidPaths.length > 0) {
       throw new Error(`Invalid GCS paths: ${invalidPaths.join(', ')}`);
     }
-    
-    const requestData: ExcelChatRequest = {
+
+    const requestData: SheetsAnalyzeRequest = {
       file_paths,
       query: query.trim(),
       session_id: sessionId,
@@ -251,75 +273,78 @@ export const chatWithExcel = async (
         ...options
       }
     };
-    
-    console.log('📊 Excel Chat Request:', {
+
+    console.log('📊 Sheets Analysis Request:', {
       fileCount: documents.length,
       filePaths: file_paths,
       query: query.substring(0, 100) + (query.length > 100 ? '...' : ''),
       sessionId,
       options: requestData.options
     });
-    
-    const response = await excelApi.post<ExcelChatResponse>('/api/excel/chat', requestData);
-    
-    console.log('✅ Excel Chat Response:', {
-      status: response.data.status,
+
+    // Call the SheetsAgent endpoint
+    const response = await sheetsApi.post<SheetsAnalyzeResponse>('/api/v1/sheets/analyze', requestData);
+
+    console.log('✅ Sheets Analysis Response:', {
+      success: response.data.success,
       responseLength: response.data.response?.length || 0,
-      filesAnalyzed: response.data.files_analyzed?.length || 0,
-      processingTime: response.data.processing_time_seconds,
-      tokensUsed: response.data.tokens_used?.total_tokens
+      filesProcessed: response.data.files_processed?.length || 0,
+      processingTimeMs: response.data.processing_time_ms,
+      tokensUsed: response.data.token_usage?.total_tokens
     });
-    
+
     return response.data;
-    
+
   } catch (error) {
-    console.error('❌ Excel Chat API Error:', error);
-    
+    console.error('❌ Sheets Analysis API Error:', error);
+
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const message = error.response?.data?.message || error.message;
-      const details = error.response?.data?.details;
-      
+
       // Handle specific error cases with enhanced messages
       if (!error.response && (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND')) {
-        throw new Error(`Excel AI service is not available. Please ensure the Excel API server is running on ${EXCEL_API_BASE_URL}`);
+        throw new Error(`Sheets analysis service is not available. Please ensure the API server is running on ${SHEETS_API_BASE_URL}`);
       }
-      
+
       switch (status) {
         case 401:
-          throw new Error('Authentication failed. Your session may have expired. Please log in again to chat with Excel files.');
+          throw new Error('Authentication failed. Your session may have expired. Please log in again.');
         case 400:
           throw new Error(`File access error: ${message}. Please check that the document exists and is accessible.`);
         case 403:
           throw new Error(`Access denied: ${message}. You may not have permission to analyze this document.`);
         case 404:
-          throw new Error(`Excel chat service not found. Please verify the Excel API server is running and accessible.`);
+          throw new Error(`Sheets analysis service not found. Please verify the API server is running and accessible.`);
         case 422:
           throw new Error(`Validation error: ${message}. Please check your query and try again.`);
         case 429:
           throw new Error('Too many requests. Please wait a moment before trying again.');
         case 500:
-          throw new Error(`Excel AI processing error: ${message}. Please try again later or contact support if the issue persists.`);
+          throw new Error(`Sheets analysis error: ${message}. Please try again later or contact support if the issue persists.`);
         case 502:
         case 503:
         case 504:
-          throw new Error(`Excel AI service is temporarily unavailable (${status}). Please try again in a few moments.`);
+          throw new Error(`Sheets analysis service is temporarily unavailable (${status}). Please try again in a few moments.`);
         default:
-          throw new Error(`Excel analysis failed (${status}): ${message}`);
+          throw new Error(`Sheets analysis failed (${status}): ${message}`);
       }
     }
-    
+
     // Handle non-axios errors
     if (error instanceof Error) {
-      throw new Error(`Excel chat error: ${error.message}`);
+      throw new Error(`Sheets analysis error: ${error.message}`);
     }
-    
-    throw new Error('An unexpected error occurred while chatting with Excel. Please try again.');
+
+    throw new Error('An unexpected error occurred while analyzing spreadsheet. Please try again.');
   }
 };
 
-// Health check for Excel API service
-export const checkExcelApiHealth = async (): Promise<{
+// Legacy alias for backward compatibility
+export const chatWithExcel = analyzeSheets;
+
+// Health check for Sheets API service
+export const checkSheetsApiHealth = async (): Promise<{
   isHealthy: boolean;
   status?: number;
   message: string;
@@ -327,25 +352,25 @@ export const checkExcelApiHealth = async (): Promise<{
   responseTime?: number;
 }> => {
   const startTime = Date.now();
-  const healthUrl = `${EXCEL_API_BASE_URL}/api/health`;
-  
+  const healthUrl = `${SHEETS_API_BASE_URL}/api/v1/sheets/health`;
+
   try {
-    console.log('🔍 Checking Excel API health at:', healthUrl);
-    
+    console.log('🔍 Checking Sheets API health at:', healthUrl);
+
     const response = await fetch(healthUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
-    
+
     const responseTime = Date.now() - startTime;
-    
+
     if (response.ok) {
       return {
         isHealthy: true,
         status: response.status,
-        message: 'Excel API service is healthy and reachable',
+        message: 'Sheets API service is healthy and reachable',
         url: healthUrl,
         responseTime,
       };
@@ -353,31 +378,31 @@ export const checkExcelApiHealth = async (): Promise<{
       return {
         isHealthy: false,
         status: response.status,
-        message: `Excel API health check failed with status ${response.status}`,
+        message: `Sheets API health check failed with status ${response.status}`,
         url: healthUrl,
         responseTime,
       };
     }
   } catch (error: any) {
     const responseTime = Date.now() - startTime;
-    
-    console.error('❌ Excel API Health Check Failed:', {
+
+    console.error('❌ Sheets API Health Check Failed:', {
       url: healthUrl,
       error: error.message,
       code: error.code,
       responseTime,
     });
-    
-    let message = 'Excel API service is unreachable';
-    
+
+    let message = 'Sheets API service is unreachable';
+
     if (error.code === 'ECONNREFUSED') {
-      message = `Excel API server is not running on ${EXCEL_API_BASE_URL}`;
+      message = `Sheets API server is not running on ${SHEETS_API_BASE_URL}`;
     } else if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-      message = 'Excel API health check timed out';
+      message = 'Sheets API health check timed out';
     } else if (error.message) {
-      message = `Excel API health check failed: ${error.message}`;
+      message = `Sheets API health check failed: ${error.message}`;
     }
-    
+
     return {
       isHealthy: false,
       message,
@@ -387,15 +412,30 @@ export const checkExcelApiHealth = async (): Promise<{
   }
 };
 
-// Excel API service object
-export const excelApiService = {
-  chat: chatWithExcel,
+// Legacy alias for backward compatibility
+export const checkExcelApiHealth = checkSheetsApiHealth;
+
+// Sheets API service object (primary export)
+export const sheetsApiService = {
+  analyze: analyzeSheets,
   constructGCSPath,
   validateGCSPath,
   validateQuery,
   validateExcelFile,
   generateSessionId,
-  checkHealth: checkExcelApiHealth,
+  checkHealth: checkSheetsApiHealth,
 };
 
-export default excelApiService;
+// Legacy alias for backward compatibility
+export const excelApiService = {
+  chat: chatWithExcel,
+  analyze: analyzeSheets,
+  constructGCSPath,
+  validateGCSPath,
+  validateQuery,
+  validateExcelFile,
+  generateSessionId,
+  checkHealth: checkSheetsApiHealth,
+};
+
+export default sheetsApiService;

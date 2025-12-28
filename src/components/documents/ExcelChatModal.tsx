@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   XMarkIcon,
@@ -16,11 +16,121 @@ import {
 } from '@heroicons/react/24/outline';
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react';
 import Button from '@/components/ui/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ChatMessage } from '@/lib/api/excel';
 import { fileUtils } from '@/lib/file-utils';
 import { formatDistanceToNow } from 'date-fns';
 import { clsx } from 'clsx';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+// Check if content contains a markdown table
+const hasMarkdownTable = (content: string): boolean => {
+  return content.includes('|') && content.includes('---');
+};
+
+// Memoized markdown components for table styling (defined outside component)
+const markdownComponents = {
+  // Style tables professionally
+  table: ({ children, ...props }: any) => (
+    <div className="overflow-x-auto my-4 rounded-lg border border-secondary-200 shadow-sm">
+      <table className="min-w-full divide-y divide-secondary-200" {...props}>
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children, ...props }: any) => (
+    <thead className="bg-gradient-to-r from-secondary-100 to-secondary-50" {...props}>
+      {children}
+    </thead>
+  ),
+  tbody: ({ children, ...props }: any) => (
+    <tbody className="divide-y divide-secondary-100 bg-white" {...props}>
+      {children}
+    </tbody>
+  ),
+  tr: ({ children, ...props }: any) => (
+    <tr className="hover:bg-blue-50/50 transition-colors" {...props}>
+      {children}
+    </tr>
+  ),
+  th: ({ children, ...props }: any) => (
+    <th className="px-4 py-3 text-left text-xs font-semibold text-secondary-700 uppercase tracking-wider whitespace-nowrap bg-secondary-100/50" {...props}>
+      {children}
+    </th>
+  ),
+  td: ({ children, ...props }: any) => (
+    <td className="px-4 py-2.5 text-sm text-secondary-800 whitespace-nowrap font-mono" {...props}>
+      {children}
+    </td>
+  ),
+  // Style paragraphs
+  p: ({ children, ...props }: any) => (
+    <p className="mb-3 last:mb-0 text-sm leading-relaxed text-secondary-800" {...props}>
+      {children}
+    </p>
+  ),
+  // Style strong text
+  strong: ({ children, ...props }: any) => (
+    <strong className="font-semibold text-secondary-900" {...props}>
+      {children}
+    </strong>
+  ),
+  // Style lists
+  ul: ({ children, ...props }: any) => (
+    <ul className="list-disc list-inside mb-3 space-y-1" {...props}>
+      {children}
+    </ul>
+  ),
+  ol: ({ children, ...props }: any) => (
+    <ol className="list-decimal list-inside mb-3 space-y-1" {...props}>
+      {children}
+    </ol>
+  ),
+  li: ({ children, ...props }: any) => (
+    <li className="text-sm text-secondary-800" {...props}>
+      {children}
+    </li>
+  ),
+};
+
+// Message content component to properly handle hooks
+interface MessageContentProps {
+  content: string;
+  isUser: boolean;
+}
+
+function MessageContent({ content, isUser }: MessageContentProps) {
+  const hasTable = useMemo(() => {
+    if (isUser) return false;
+    return hasMarkdownTable(content);
+  }, [content, isUser]);
+
+  if (isUser) {
+    return <p className="text-sm leading-relaxed">{content}</p>;
+  }
+
+  return (
+    <div className={clsx(
+      "prose prose-sm max-w-none text-left",
+      hasTable && "prose-table:my-0"
+    )}>
+      {hasTable && (
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-secondary-200">
+          <TableCellsIcon className="w-4 h-4 text-green-600" />
+          <span className="text-xs font-medium text-secondary-600 uppercase tracking-wide">
+            Data Analysis Results
+          </span>
+        </div>
+      )}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={markdownComponents}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 interface ExcelChatModalProps {
   isOpen: boolean;
@@ -93,18 +203,12 @@ export default function ExcelChatModal({
     textareaRef.current?.focus();
   };
 
-  const formatMessageContent = (content: string) => {
-    // Simple formatting for better readability
-    return content
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>');
-  };
-
   const renderMessage = (message: ChatMessage) => {
     const isUser = message.type === 'user';
-    
+
+    // Check if content has table for width adjustment
+    const hasTable = !isUser && hasMarkdownTable(message.content);
+
     return (
       <motion.div
         key={message.id}
@@ -116,50 +220,45 @@ export default function ExcelChatModal({
         )}
       >
         <div className={clsx(
-          'max-w-[80%] rounded-lg px-4 py-3',
+          'rounded-lg px-4 py-3',
           isUser
-            ? 'bg-primary-600 text-white'
-            : 'bg-secondary-50 text-secondary-900'
+            ? 'max-w-[80%] bg-primary-600 text-white'
+            : hasTable ? 'max-w-[95%] bg-secondary-50 text-secondary-900' : 'max-w-[80%] bg-secondary-50 text-secondary-900'
         )}>
-          <div 
-            className="prose prose-sm max-w-none text-left"
-            dangerouslySetInnerHTML={{ 
-              __html: `<p>${formatMessageContent(message.content)}</p>`
-            }}
-          />
+          <MessageContent content={message.content} isUser={isUser} />
           
           {/* Message metadata for assistant messages */}
           {!isUser && message.metadata && (
             <div className="mt-3 pt-3 border-t border-secondary-200">
               <div className="flex items-center gap-4 text-xs text-secondary-600">
-                {message.metadata.processing_time && (
+                {message.metadata.processing_time_ms && (
                   <div className="flex items-center gap-1">
                     <ClockIcon className="w-3 h-3" />
-                    <span>{message.metadata.processing_time.toFixed(1)}s</span>
+                    <span>{(message.metadata.processing_time_ms / 1000).toFixed(1)}s</span>
                   </div>
                 )}
-                {message.metadata.tokens_used && (
+                {message.metadata.token_usage && (
                   <div className="flex items-center gap-1">
                     <CpuChipIcon className="w-3 h-3" />
-                    <span>{message.metadata.tokens_used.total_tokens} tokens</span>
+                    <span>{message.metadata.token_usage.total_tokens} tokens</span>
                   </div>
                 )}
-                {message.metadata.files_analyzed && (
+                {message.metadata.files_processed && (
                   <div className="flex items-center gap-1">
                     <TableCellsIcon className="w-3 h-3" />
-                    <span>{message.metadata.files_analyzed.length} files</span>
+                    <span>{message.metadata.files_processed.length} files</span>
                   </div>
                 )}
               </div>
-              
+
               {/* Detailed analysis info */}
-              {message.metadata.files_analyzed && showFileDetails && (
+              {message.metadata.files_processed && showFileDetails && (
                 <div className="mt-2 space-y-1">
-                  {message.metadata.files_analyzed.map((file, idx) => (
+                  {message.metadata.files_processed.map((file, idx) => (
                     <div key={idx} className="text-xs bg-secondary-100 rounded px-2 py-1">
-                      <div className="font-medium">{file.name}</div>
+                      <div className="font-medium">{file.file_path.split('/').pop()}</div>
                       <div className="text-secondary-600">
-                        {file.row_count.toLocaleString()} rows × {file.columns.length} columns
+                        {file.rows ? `${file.rows.toLocaleString()} rows` : ''}{file.rows && file.columns ? ' × ' : ''}{file.columns ? `${file.columns} columns` : file.column_names ? `${file.column_names.length} columns` : ''}
                       </div>
                     </div>
                   ))}
