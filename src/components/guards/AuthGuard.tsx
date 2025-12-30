@@ -13,7 +13,7 @@ interface AuthGuardProps {
 export default function AuthGuard({
   children,
   requireAuth = true,
-  fallbackPath = '/register'
+  fallbackPath = '/login'
 }: AuthGuardProps) {
   const { isAuthenticated, isLoading, user, isSessionExpired, logout } = useAuth();
   const router = useRouter();

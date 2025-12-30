@@ -8,8 +8,7 @@
  */
 export const withBackendFallback = async <T>(
   apiCall: () => Promise<T>,
-  fallbackData?: T,
-  _fallbackMessage?: string
+  fallbackData?: T
 ): Promise<T> => {
   try {
     const result = await apiCall();

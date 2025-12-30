@@ -2,3 +2,4 @@
 export { summaryApi } from './summary';
 export { faqApi } from './faq';
 export { questionsApi } from './questions';
+export { extractionApi } from './extraction';

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { documentsApi } from '@/lib/api/index';
 import { DocumentList, DocumentFilters } from '@/types/api';
+import { authService } from '@/lib/auth';
 
 // Helper function to normalize document fields from backend response
 const normalizeDocument = (doc: any): any => {
@@ -55,6 +56,9 @@ export const useAllDocuments = (
   filters?: DocumentFilters,
   enabled = true
 ) => {
+  // Check if user is authenticated (has valid token)
+  const hasValidToken = !!authService.getAccessToken();
+
   return useQuery({
     queryKey: QUERY_KEYS.allDocuments(orgId, filters),
     queryFn: async (): Promise<DocumentList> => {
@@ -62,6 +66,13 @@ export const useAllDocuments = (
 
       if (!orgId) {
         console.warn('⚠️ useAllDocuments: No orgId provided, returning empty list');
+        return { documents: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
+      }
+
+      // Double-check authentication before making request
+      const token = authService.getAccessToken();
+      if (!token) {
+        console.warn('⚠️ useAllDocuments: No auth token available, returning empty list');
         return { documents: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
       }
 
@@ -100,7 +111,7 @@ export const useAllDocuments = (
         return { documents: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
       }
     },
-    enabled: enabled && !!orgId,
+    enabled: enabled && !!orgId && hasValidToken,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
     retry: 2, // Retry up to 2 times before using fallback

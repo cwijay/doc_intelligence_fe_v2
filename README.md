@@ -634,13 +634,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   `src/lib/api/documents.ts` - Document processing API with GCS integration
 -   `src/lib/api/ai-features/` - AI feature modules (summary.ts, faq.ts, questions.ts)
 -   `src/lib/api/ai-features/helpers.ts` - Shared AI feature utilities
+-   `src/lib/api/ingestion/` - Document ingestion and RAG operations
 -   `src/lib/api/utils/error-utils.ts` - Centralized error handling
 -   `src/lib/auth.ts` - Token management utilities
 -   `src/contexts/AuthContext.tsx` - Authentication state management
 -   `src/middleware.ts` - Route protection and caching
 -   `src/hooks/useProfile.ts` - Profile data management with fallback API
 -   `src/hooks/useAIModalState.ts` - Shared state for AI content modals
--   `src/components/documents/DocumentAIContentModal.tsx` - Unified AI content modal
+-   `src/hooks/useDocumentSelection.ts` - Shared document selection with shift-click range support
+-   `src/hooks/ai/` - Modular AI hooks (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
+-   `src/hooks/rag/` - RAG hooks (useRagChatConfig, useRagChatSession, useSearchHistory)
+-   `src/components/documents/ai-modal/` - Unified AI content modal and views
+-   `src/components/documents/card/` - Reusable document card components
+-   `src/components/ui/StatusBadge.tsx` - Unified status badge with variants (full, dot, icon)
 -   `src/components/documents/DocumentParseModal.tsx` - Interactive document editor
 
 ### Custom Hooks Architecture
@@ -660,17 +666,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 #### Document Processing Hooks
 
 -   `useDocumentActions()` - Document operations (upload, parse, save, delete)
--   `useDocumentAI()` - AI features integration (summary, FAQ, questions generation)
+-   `useDocumentSelection()` - Shared document selection with shift-click range support
+-   AI hooks in `src/hooks/ai/` - AI features integration (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
 -   `useAIModalState()` - Shared modal state (tabs, editing, regeneration options)
--   `useRagChat()` - RAG-based document chat functionality
+-   RAG hooks in `src/hooks/rag/` - RAG-based document chat functionality (useRagChatConfig, useRagChatSession)
 
 #### AI Features Architecture
 
--   **Unified Modal**: `DocumentAIContentModal` handles summary, FAQ, and questions
+-   **Unified Modal**: `src/components/documents/ai-modal/DocumentAIContentModal` handles summary, FAQ, and questions
 -   **Shared State Hook**: `useAIModalState` provides common modal functionality
 -   **Content Types**: `'summary' | 'faq' | 'questions'`
 -   **Response Caching**: All AI responses cached in GCS with cache status indicators
 -   **Regeneration**: Customizable options per content type (length, format, count)
+-   **Status Display**: `StatusBadge` component with variants (full, dot, icon) for document status
 
 #### Utility Hooks
 

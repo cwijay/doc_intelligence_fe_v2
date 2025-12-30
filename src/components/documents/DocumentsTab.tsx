@@ -6,7 +6,6 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   TrashIcon,
-  ArrowDownTrayIcon,
   DocumentTextIcon,
   ChatBubbleLeftIcon,
   XMarkIcon,
@@ -19,16 +18,18 @@ import Button from '@/components/ui/Button';
 import DocumentList from '@/components/documents/DocumentList';
 import DocumentListCompact from '@/components/documents/DocumentListCompact';
 import DocumentTableView from '@/components/documents/DocumentTableView';
-import DocumentAIContentModal from '@/components/documents/DocumentAIContentModal';
+import DocumentAIContentModal from '@/components/documents/ai-modal';
 import DocumentParseModal from '@/components/documents/DocumentParseModal';
+import { ExtractionModal } from '@/components/documents/extraction/ExtractionModal';
 import ExcelChatModal from '@/components/documents/ExcelChatModal';
 import RagChatModal from '@/components/documents/RagChatModal';
 import { useFolders, useFolderDocuments } from '@/hooks/useFolders';
 import { useAllDocuments } from '@/hooks/useAllDocuments';
 import { useDocumentActions } from '@/hooks/useDocumentActions';
-import { useDocumentAI } from '@/hooks/useDocumentAI';
+import { useDocumentAI } from '@/hooks/ai';
 import { useExcelChat } from '@/hooks/useExcelChat';
-import { useRagChat } from '@/hooks/useRagChat';
+import { useRagChat } from '@/hooks/rag';
+import { useExtraction } from '@/hooks/extraction';
 import { useAuth } from '@/hooks/useAuth';
 import { Folder, Document } from '@/types/api';
 import toast from 'react-hot-toast';
@@ -60,9 +61,12 @@ export default function DocumentsTab({
   
   // Selection state for multi-select
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
-  
+
   // View mode state - toggle between modern and legacy views
   const [useModernView, setUseModernView] = useState(true);
+
+  // State to track if we should reopen parse modal after extraction completes
+  const [reopenParseModalAfterExtraction, setReopenParseModalAfterExtraction] = useState(false);
 
   // Document actions from custom hook
   const documentActions = useDocumentActions();
@@ -75,6 +79,9 @@ export default function DocumentsTab({
   
   // RAG chat functionality
   const ragChat = useRagChat();
+
+  // Extraction functionality
+  const extraction = useExtraction();
 
   // Fetch folders data to get folder name for display
   const { data: foldersData } = useFolders(organizationId, undefined, !!organizationId);
@@ -216,18 +223,6 @@ export default function DocumentsTab({
     }
   }, [selectedDocuments, filteredDocuments, documentActions]);
 
-  // Handle bulk download
-  const handleBulkDownload = useCallback(async () => {
-    if (selectedDocuments.size === 0) return;
-
-    for (const docId of selectedDocuments) {
-      const doc = filteredDocuments.find((d: Document) => d.id === docId);
-      if (doc && documentActions.handleDownload) {
-        await documentActions.handleDownload(doc);
-      }
-    }
-  }, [selectedDocuments, filteredDocuments, documentActions]);
-
   // Handle bulk parse
   const handleBulkParse = useCallback(async () => {
     if (selectedDocuments.size === 0) return;
@@ -245,6 +240,25 @@ export default function DocumentsTab({
     console.log('📊 DocumentsTab: handleAnalyse called for:', document.name);
     excelChat.openChat([document]);
   }, [excelChat]);
+
+  // Handle extraction complete - reopen parse modal for mandatory indexing
+  const handleExtractionComplete = useCallback(() => {
+    console.log('📋 DocumentsTab: Extraction completed, reopening parse modal');
+    setReopenParseModalAfterExtraction(true);
+  }, []);
+
+  // Effect to reopen parse modal after extraction
+  useEffect(() => {
+    if (reopenParseModalAfterExtraction && !extraction.isModalOpen) {
+      // Get the document from extraction state (preserved by completeExtraction)
+      const doc = extraction.selectedDocument;
+      if (doc && documentActions.parseData) {
+        // Reopen the parse modal
+        documentActions.openParseModal(doc, documentActions.parseData);
+      }
+      setReopenParseModalAfterExtraction(false);
+    }
+  }, [reopenParseModalAfterExtraction, extraction.isModalOpen, extraction.selectedDocument, documentActions]);
 
   // Handle bulk chat
   const handleBulkChat = useCallback(() => {
@@ -490,15 +504,6 @@ export default function DocumentsTab({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleBulkDownload}
-                    icon={<ArrowDownTrayIcon className="w-4 h-4" />}
-                    className="bg-white"
-                  >
-                    Download All
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
                     onClick={handleBulkChat}
                     icon={<ChatBubbleLeftIcon className="w-4 h-4" />}
                     className="bg-white"
@@ -596,16 +601,16 @@ export default function DocumentsTab({
           searchTerm={searchTerm}
           onSearchChange={onSearchChange}
           onRefresh={() => window.location.reload()}
-          onView={documentActions.handleView}
-          onDownload={documentActions.handleDownload}
           onDelete={documentActions.handleDelete}
           onParse={documentActions.handleParse}
+          onLoadParsed={documentActions.handleLoadParsed}
           onSummarize={documentAI.handleSummarize}
           onFaq={(doc, count) => documentAI.handleFaq(doc, count || 10)}
           onQuestions={(doc, count) => documentAI.handleQuestions(doc, count || 10)}
           onChat={documentActions.handleChat}
           onAnalyse={handleAnalyse}
           parsingDocuments={documentActions.parsingDocuments}
+          loadingParsedDocuments={documentActions.loadingParsedDocuments}
           summarizingDocuments={documentAI.summarizingDocuments}
           faqGeneratingDocuments={documentAI.faqGeneratingDocuments}
           questionsGeneratingDocuments={documentAI.questionsGeneratingDocuments}
@@ -652,16 +657,16 @@ export default function DocumentsTab({
           ) : (
             <DocumentListCompact
               documents={filteredDocuments}
-              onView={documentActions.handleView}
-              onDownload={documentActions.handleDownload}
               onDelete={documentActions.handleDelete}
               onParse={documentActions.handleParse}
+              onLoadParsed={documentActions.handleLoadParsed}
               onSummarize={documentAI.handleSummarize}
               onFaq={(doc) => documentAI.handleFaq(doc, 5)}
               onQuestions={(doc) => documentAI.handleQuestions(doc, 5)}
               onChat={documentActions.handleChat}
               onAnalyse={handleAnalyse}
               parsingDocuments={documentActions.parsingDocuments}
+              loadingParsedDocuments={documentActions.loadingParsedDocuments}
               selectedDocuments={selectedDocuments}
               onSelectionChange={handleSelectionChange}
               enableSelection={true}
@@ -707,6 +712,11 @@ export default function DocumentsTab({
         document={documentActions.selectedDocumentForParse}
         parseData={documentActions.parseData}
         onSave={documentActions.handleSaveParsedContent}
+        onExtract={() => {
+          if (documentActions.selectedDocumentForParse) {
+            extraction.startExtraction(documentActions.selectedDocumentForParse);
+          }
+        }}
       />
 
       {/* Excel Chat Modal */}
@@ -746,6 +756,12 @@ export default function DocumentsTab({
         onSetSearchMode={ragChat.setSearchMode}
         onSetFolderFilter={ragChat.setFolderFilter}
         onSetFileFilter={ragChat.setFileFilter}
+      />
+
+      {/* Document Extraction Modal */}
+      <ExtractionModal
+        extraction={extraction}
+        onComplete={handleExtractionComplete}
       />
     </motion.div>
   );

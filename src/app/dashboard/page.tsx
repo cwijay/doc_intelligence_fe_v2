@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
-import { 
-  DocumentTextIcon, 
-  CloudArrowUpIcon, 
+import React, { useState } from 'react';
+import {
+  DocumentTextIcon,
+  CloudArrowUpIcon,
   ChartBarIcon,
   BuildingOfficeIcon,
   SparklesIcon,
@@ -19,6 +19,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDocumentStats } from '@/hooks/useFolders';
 import { useRecentActivity } from '@/hooks/useRecentActivity';
 import { formatFileSize } from '@/lib/file-utils';
+import { Document } from '@/types/api';
+import DocumentContentModal from '@/components/documents/DocumentContentModal';
 
 export default function Dashboard() {
   return (
@@ -32,6 +34,7 @@ function DashboardContent() {
   const router = useRouter();
   const { user } = useAuth();
   const organizationId = user?.org_id || '';
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
 
   // Fetch document stats for document count
   const { data: documentStats, isLoading: statsLoading, error: statsError } = useDocumentStats(
@@ -213,7 +216,21 @@ function DashboardContent() {
                         {activity.status === 'info' && <BuildingOfficeIcon className="w-4 h-4 text-primary-600 dark:text-primary-400" />}
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm text-secondary-900 dark:text-secondary-100">{activity.message}</p>
+                        <p className="text-sm text-secondary-900 dark:text-secondary-100">
+                          {activity.document ? (
+                            <>
+                              <button
+                                onClick={() => setSelectedDocument(activity.document!)}
+                                className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded"
+                              >
+                                {activity.document.name}
+                              </button>
+                              <span>{activity.message.replace(activity.document.name, '')}</span>
+                            </>
+                          ) : (
+                            activity.message
+                          )}
+                        </p>
                         <p className="text-xs text-secondary-500 dark:text-secondary-400">{activity.time}</p>
                       </div>
                     </div>
@@ -281,6 +298,12 @@ function DashboardContent() {
         </div>
       </main>
 
+      {/* Document Content Modal */}
+      <DocumentContentModal
+        document={selectedDocument}
+        isOpen={!!selectedDocument}
+        onClose={() => setSelectedDocument(null)}
+      />
     </div>
   );
 }

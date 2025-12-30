@@ -15,11 +15,13 @@ export interface DocumentCardProps {
   onDownload?: () => void;
   onDelete?: () => void;
   onParse?: () => void;
+  onLoadParsed?: () => void;
   onSummarize?: () => void;
   onFaq?: (count?: number) => void;
   onQuestions?: (count?: number) => void;
   onChat?: () => void;
   onAnalyse?: () => void;
+  onExtract?: () => void;
   isProcessing?: ProcessingState;
   viewMode?: 'grid' | 'list' | 'compact';
   className?: string;
@@ -27,9 +29,11 @@ export interface DocumentCardProps {
 
 export interface ProcessingState {
   parsing?: boolean;
+  loadingParsed?: boolean;
   summarizing?: boolean;
   faqGenerating?: boolean;
   questionsGenerating?: boolean;
+  extracting?: boolean;
 }
 
 export interface StatusInfo {

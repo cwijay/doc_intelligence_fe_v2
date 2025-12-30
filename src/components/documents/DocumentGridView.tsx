@@ -8,7 +8,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { Document } from '@/types/api';
-import DocumentCard from './DocumentCard';
+import DocumentCard from './card';
 import DocumentViewSwitcher, { ViewSettings, ViewMode } from './DocumentViewSwitcher';
 import Button from '@/components/ui/Button';
 import { clsx } from 'clsx';

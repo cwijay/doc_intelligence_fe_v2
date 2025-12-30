@@ -25,5 +25,12 @@ export {
   constructGcsFileUrl
 } from './operations';
 
+// Re-export content operations (load pre-parsed documents)
+export {
+  loadParsedContent,
+  checkParsedExists,
+  createLoadParsedRequest,
+} from './content';
+
 // Default export for backward compatibility
 export { default } from './operations';

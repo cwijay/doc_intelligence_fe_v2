@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useDocumentSelection } from '@/hooks/useDocumentSelection';
 import { motion } from 'framer-motion';
 import { 
   DocumentTextIcon,
@@ -23,6 +24,7 @@ import Button from '@/components/ui/Button';
 import CountSelector from '@/components/ui/CountSelector';
 import { formatDistanceToNow } from 'date-fns';
 import { clsx } from 'clsx';
+import { formatFileSize } from '@/lib/file-types';
 import {
   getGenerationCount,
   setGenerationCount,
@@ -104,14 +106,6 @@ const getStatusColor = (status: DocumentStatus) => {
   }
 };
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
 const getFileTypeIcon = (_type: string) => {
   // For now, use document icon for all types
   // Can be expanded to show different icons per file type
@@ -148,75 +142,21 @@ export default function DocumentList({
   const faqButtonRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const questionsButtonRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Selection handlers
-  const handleSelectAll = () => {
-    if (!onSelectionChange || !enableSelection) return;
-    
-    // Only consider parsed documents for selection
-    const parsedDocuments = documents.filter(doc => isDocumentParsed(doc));
-    const allParsedSelected = parsedDocuments.length > 0 && 
-      parsedDocuments.every(doc => selectedDocuments.has(doc.id));
-    
-    if (allParsedSelected) {
-      onSelectionChange(new Set());
-    } else {
-      // Only select parsed documents
-      onSelectionChange(new Set(parsedDocuments.map(doc => doc.id)));
-    }
-  };
-
-  const handleSelectDocument = (documentId: string, event?: React.MouseEvent) => {
-    if (!onSelectionChange || !enableSelection) return;
-    
-    // Find the document to check if it's parsed
-    const document = documents.find(doc => doc.id === documentId);
-    if (!document || !isDocumentParsed(document)) {
-      return; // Don't allow selection of non-parsed documents
-    }
-    
-    const newSelection = new Set(selectedDocuments);
-    
-    if (event?.shiftKey && documents.length > 0) {
-      // Handle shift-click for range selection
-      const clickedIndex = documents.findIndex(doc => doc.id === documentId);
-      const lastSelectedIndex = documents.findIndex(doc => 
-        Array.from(selectedDocuments).includes(doc.id)
-      );
-      
-      if (lastSelectedIndex !== -1 && clickedIndex !== -1) {
-        const start = Math.min(clickedIndex, lastSelectedIndex);
-        const end = Math.max(clickedIndex, lastSelectedIndex);
-        
-        for (let i = start; i <= end; i++) {
-          // Only add parsed documents to selection
-          if (isDocumentParsed(documents[i])) {
-            newSelection.add(documents[i].id);
-          }
-        }
-      } else {
-        if (newSelection.has(documentId)) {
-          newSelection.delete(documentId);
-        } else {
-          newSelection.add(documentId);
-        }
-      }
-    } else {
-      // Regular click
-      if (newSelection.has(documentId)) {
-        newSelection.delete(documentId);
-      } else {
-        newSelection.add(documentId);
-      }
-    }
-    
-    onSelectionChange(newSelection);
-  };
-
-  // Calculate selection states considering only parsed documents
-  const parsedDocuments = documents.filter(doc => isDocumentParsed(doc));
-  const isAllSelected = parsedDocuments.length > 0 && 
-    parsedDocuments.every(doc => selectedDocuments.has(doc.id));
-  const isIndeterminate = parsedDocuments.some(doc => selectedDocuments.has(doc.id)) && !isAllSelected;
+  // Use shared selection hook
+  const {
+    handleSelectAll,
+    handleSelectDocument,
+    isAllSelected,
+    isIndeterminate,
+    selectableDocuments: parsedDocuments,
+    selectedCount,
+  } = useDocumentSelection({
+    documents,
+    selectedDocuments,
+    onSelectionChange,
+    enableSelection,
+    requireParsed: true,
+  });
 
   // Load saved counts on mount
   useEffect(() => {

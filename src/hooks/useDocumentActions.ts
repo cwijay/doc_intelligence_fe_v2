@@ -4,7 +4,8 @@ import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Document, DocumentParseResponse } from '@/types/api';
 import { documentsApi, foldersApi, organizationsApi } from '@/lib/api/index';
-import { ingestionApi, saveAndIndexDocument } from '@/lib/api/ingestion';
+import { ingestionApi, saveAndIndexDocument } from '@/lib/api/ingestion/index';
+import { loadParsedContent, createLoadParsedRequest } from '@/lib/api/ingestion/content';
 import { adaptIngestParseResponse } from '@/lib/api/utils/parse-adapter';
 import { fileUtils } from '@/lib/file-utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,25 +14,26 @@ import toast from 'react-hot-toast';
 
 interface UseDocumentActionsReturn {
   // Document actions
-  handleView: (document: Document) => void;
-  handleDownload: (document: Document) => void;
   handleDelete: (document: Document) => void;
   handleParse: (document: Document) => Promise<void>;
+  handleLoadParsed: (document: Document) => Promise<void>;
   handleChat: (document: Document) => void;
-  
+
   // RAG chat callback - will be set by DocumentsTab
   setOnRagChat: (callback: (document: Document) => void) => void;
-  
+
   // Parsing state management
   parsingDocuments: Set<string>;
-  
+  loadingParsedDocuments: Set<string>;
+
   // Parse modal state
   selectedDocumentForParse: Document | null;
   parseData: DocumentParseResponse | null;
   isParseModalOpen: boolean;
   handleSaveParsedContent: (editedContent: string) => Promise<void>;
   closeParseModal: () => void;
-  
+  openParseModal: (document: Document, parseData: DocumentParseResponse) => void;
+
   // Excel chat callback - will be set by DocumentsTab
   setOnExcelChat: (callback: (documents: Document[]) => void) => void;
 }
@@ -39,6 +41,7 @@ interface UseDocumentActionsReturn {
 export function useDocumentActions(): UseDocumentActionsReturn {
   // Parsing state management
   const [parsingDocuments, setParsingDocuments] = useState<Set<string>>(new Set());
+  const [loadingParsedDocuments, setLoadingParsedDocuments] = useState<Set<string>>(new Set());
   
   // Parse modal state
   const [selectedDocumentForParse, setSelectedDocumentForParse] = useState<Document | null>(null);
@@ -54,16 +57,6 @@ export function useDocumentActions(): UseDocumentActionsReturn {
   // Hooks for user context and query client
   const { user } = useAuth();
   const queryClient = useQueryClient();
-
-  const handleView = useCallback((_document: Document) => {
-    // TODO: Implement document viewing
-    toast('Document viewing functionality coming soon');
-  }, []);
-
-  const handleDownload = useCallback((_document: Document) => {
-    // TODO: Implement document download
-    toast('Download functionality coming soon');
-  }, []);
 
   const handleDelete = useCallback(async (document: Document) => {
     if (!document?.id) {
@@ -192,6 +185,74 @@ export function useDocumentActions(): UseDocumentActionsReturn {
     }
   }, [user, queryClient]);
 
+  /**
+   * Load pre-parsed content from GCS for documents that have already been parsed
+   * but parsing times out on the frontend.
+   */
+  const handleLoadParsed = useCallback(async (document: Document) => {
+    try {
+      // Add document to loading state
+      setLoadingParsedDocuments(prev => new Set([...prev, document.id]));
+
+      console.log(`📂 Loading parsed content for "${document.name}"`);
+
+      const loadingToast = toast.loading(
+        `📂 Loading parsed content for "${document.name}"...`,
+        { id: `load-parsed-${document.id}` }
+      );
+
+      // Get organization name
+      const orgName = user?.org_name || '';
+      if (!orgName) {
+        throw new Error('Organization name not available. Please ensure you are logged in.');
+      }
+
+      // Get folder name - prioritize document.folder_name (from storage path) over folder_id lookup
+      let folderName: string | undefined = document.folder_name;
+      if (!folderName && document.folder_id && user?.org_id) {
+        try {
+          const folderResponse = await foldersApi.getById(user.org_id, document.folder_id);
+          folderName = folderResponse.name;
+        } catch (folderError) {
+          console.warn('⚠️ Could not resolve folder name:', folderError);
+        }
+      }
+
+      // Call loadParsedContent from content API module
+      const request = createLoadParsedRequest(document, orgName, folderName || 'default');
+      const response = await loadParsedContent(request);
+
+      toast.success(
+        `✅ Loaded "${document.name}" - ${response.parsing_metadata.content_length.toLocaleString()} chars`,
+        { id: loadingToast }
+      );
+
+      // Remove from loading state
+      setLoadingParsedDocuments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(document.id);
+        return newSet;
+      });
+
+      // Open the parse modal with loaded content
+      setSelectedDocumentForParse(document);
+      setParseData(response);
+      setIsParseModalOpen(true);
+
+    } catch (error) {
+      console.error('Load parsed error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load parsed content';
+
+      toast.dismiss(`load-parsed-${document.id}`);
+      toast.error(errorMessage);
+
+      setLoadingParsedDocuments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(document.id);
+        return newSet;
+      });
+    }
+  }, [user]);
 
   const handleChat = useCallback((document: Document) => {
     console.log('🔍 handleChat called for document:', {
@@ -275,6 +336,16 @@ export function useDocumentActions(): UseDocumentActionsReturn {
     setIsParseModalOpen(false);
     setSelectedDocumentForParse(null);
     setParseData(null);
+  }, []);
+
+  /**
+   * Open the parse modal with existing document and parse data
+   * Used when returning from extraction modal for mandatory indexing
+   */
+  const openParseModal = useCallback((document: Document, existingParseData: DocumentParseResponse) => {
+    setSelectedDocumentForParse(document);
+    setParseData(existingParseData);
+    setIsParseModalOpen(true);
   }, []);
 
   const handleSaveParsedContent = useCallback(async (editedContent: string) => {
@@ -363,34 +434,35 @@ export function useDocumentActions(): UseDocumentActionsReturn {
 
   return {
     // Document actions
-    handleView,
-    handleDownload,
     handleDelete,
     handleParse,
+    handleLoadParsed,
     handleChat,
-    
+
     // Parsing state
     parsingDocuments,
-    
+    loadingParsedDocuments,
+
     // Parse modal state
     selectedDocumentForParse,
     parseData,
     isParseModalOpen,
     handleSaveParsedContent,
     closeParseModal,
-    
+    openParseModal,
+
     // Excel chat callback setter
     setOnExcelChat: useCallback((callback: (documents: Document[]) => void) => {
-      console.log('🔧 Setting Excel chat callback:', { 
+      console.log('🔧 Setting Excel chat callback:', {
         hasCallback: !!callback,
         callbackType: typeof callback
       });
       onExcelChatRef.current = callback;
     }, []),
-    
+
     // RAG chat callback setter
     setOnRagChat: useCallback((callback: (document: Document) => void) => {
-      console.log('🔧 Setting RAG chat callback:', { 
+      console.log('🔧 Setting RAG chat callback:', {
         hasCallback: !!callback,
         callbackType: typeof callback
       });

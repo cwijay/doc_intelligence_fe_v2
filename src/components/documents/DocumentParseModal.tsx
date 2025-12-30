@@ -9,12 +9,15 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { 
-  DocumentTextIcon, 
-  InformationCircleIcon, 
+import {
+  DocumentTextIcon,
+  InformationCircleIcon,
   TagIcon,
   PencilSquareIcon,
-  EyeIcon
+  EyeIcon,
+  TableCellsIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 import RichTextEditor from '@/components/editors/RichTextEditor';
@@ -44,6 +47,9 @@ interface DocumentParseModalProps {
   document: Document | null;
   parseData: DocumentParseResponse | null;
   onSave?: (editedContent: string) => Promise<void>;
+  onExtract?: () => void;
+  /** Whether indexing is required before closing (default: true) */
+  requireIndexing?: boolean;
 }
 
 type TabType = 'content' | 'metadata' | 'entities';
@@ -53,13 +59,16 @@ export default function DocumentParseModal({
   onClose,
   document,
   parseData,
-  onSave
+  onSave,
+  onExtract,
+  requireIndexing = true
 }: DocumentParseModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>('content');
   const [editedContent, setEditedContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [previewMode, setPreviewMode] = useState<'split' | 'preview' | 'edit'>('split');
   const [isSaving, setIsSaving] = useState(false);
+  const [isIndexed, setIsIndexed] = useState(false);
 
   useEffect(() => {
     if (parseData?.parsed_content) {
@@ -67,13 +76,22 @@ export default function DocumentParseModal({
     }
   }, [parseData]);
 
+  // Reset isIndexed when modal opens with new document
+  useEffect(() => {
+    if (isOpen) {
+      setIsIndexed(false);
+    }
+  }, [isOpen, document?.id]);
+
   const handleSave = async () => {
     if (!onSave) return;
-    
+
     setIsSaving(true);
     try {
       await onSave(editedContent);
       setIsEditing(false);
+      // Mark as indexed on successful save
+      setIsIndexed(true);
     } catch (error) {
       console.error('Failed to save content:', error);
       // Don't reset editing state on error so user can retry
@@ -81,6 +99,22 @@ export default function DocumentParseModal({
       setIsSaving(false);
     }
   };
+
+  /**
+   * Handle close attempt - only allow if indexed or indexing not required
+   */
+  const handleClose = () => {
+    if (requireIndexing && !isIndexed) {
+      // Don't close if indexing is required but not done
+      return;
+    }
+    onClose();
+  };
+
+  /**
+   * Check if close button should be disabled
+   */
+  const isCloseDisabled = requireIndexing && !isIndexed;
 
   const tabs = [
     {
@@ -192,6 +226,18 @@ export default function DocumentParseModal({
                       </button>
                     </div>
                     <div className="flex space-x-2">
+                      {onExtract && (
+                        <button
+                          onClick={() => {
+                            onClose();
+                            onExtract();
+                          }}
+                          className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors flex items-center"
+                        >
+                          <TableCellsIcon className="w-4 h-4 mr-2" />
+                          Extract Data
+                        </button>
+                      )}
                       <button
                         onClick={handleSave}
                         disabled={isSaving}
@@ -527,12 +573,48 @@ export default function DocumentParseModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={`Parse Results: ${document.name}`}
       size="4xl"
       className="max-h-[90vh]"
+      showCloseButton={!isCloseDisabled}
     >
       <div className="space-y-6">
+        {/* Indexing status banner */}
+        {requireIndexing && (
+          isIndexed ? (
+            <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  Document indexed successfully
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  You can now close this window or continue editing
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-800 rounded-md hover:bg-green-200 dark:hover:bg-green-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Document must be indexed before closing
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Click "Save & Index Document" to enable search and complete the workflow
+                </p>
+              </div>
+            </div>
+          )
+        )}
+
         {parseData?.timestamp && (
           <div className="text-sm text-secondary-600">
             Processed at {new Date(parseData.timestamp).toLocaleString()}

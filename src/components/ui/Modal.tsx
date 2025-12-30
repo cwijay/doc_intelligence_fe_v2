@@ -12,6 +12,8 @@ interface ModalProps {
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | 'full';
   className?: string;
+  /** Whether to show the close button (default: true) */
+  showCloseButton?: boolean;
 }
 
 export default function Modal({
@@ -20,7 +22,8 @@ export default function Modal({
   title,
   children,
   size = 'md',
-  className
+  className,
+  showCloseButton = true
 }: ModalProps) {
   const sizeClasses = {
     sm: 'max-w-md',
@@ -77,18 +80,20 @@ export default function Modal({
                     >
                       {title}
                     </Dialog.Title>
-                    <button
-                      type="button"
-                      className={clsx(
-                        'rounded-lg p-2 transition-colors duration-200',
-                        'text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100',
-                        'dark:text-secondary-500 dark:hover:text-secondary-300 dark:hover:bg-secondary-700',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500'
-                      )}
-                      onClick={onClose}
-                    >
-                      <XMarkIcon className="h-5 w-5" />
-                    </button>
+                    {showCloseButton && (
+                      <button
+                        type="button"
+                        className={clsx(
+                          'rounded-lg p-2 transition-colors duration-200',
+                          'text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100',
+                          'dark:text-secondary-500 dark:hover:text-secondary-300 dark:hover:bg-secondary-700',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500'
+                        )}
+                        onClick={onClose}
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    )}
                   </div>
                 )}
 

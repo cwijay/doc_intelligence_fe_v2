@@ -139,19 +139,20 @@ Protected routes require authentication:
 
 ### Hooks
 - `src/hooks/useProfile.ts` - Profile data management with API fallback pattern
-- `src/hooks/useDocumentAI.ts` - AI features integration (summary, FAQ, questions)
-- `src/hooks/ai/` - Modular AI hooks (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration)
+- `src/hooks/ai/` - Modular AI hooks (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
 - `src/hooks/rag/` - RAG hooks (useRagChatConfig, useRagChatSession, useSearchHistory)
 - `src/hooks/useAIModalState.ts` - Shared state management for AI content modals
 - `src/hooks/useSidebarState.ts` - Sidebar collapse/expand state
 - `src/hooks/useTreeSelection.ts` - Folder tree selection state
+- `src/hooks/useDocumentSelection.ts` - Shared document selection with shift-click range support
 
 ### Components
 - `src/components/guards/AuthGuard.tsx` - Route protection component
-- `src/components/documents/DocumentAIContentModal.tsx` - Unified modal for all AI content types
-- `src/components/documents/ai-modal/` - Modular AI modal views (SummaryView, FAQView, QuestionsView)
+- `src/components/documents/ai-modal/` - Modular AI modal views (SummaryView, FAQView, QuestionsView, DocumentAIContentModal)
+- `src/components/documents/card/` - Reusable document card components
 - `src/components/documents/DocumentTreeLayout.tsx` - Tree-based document browser
 - `src/components/documents/DocumentTreeSidebar.tsx` - Collapsible folder sidebar
+- `src/components/ui/StatusBadge.tsx` - Unified status badge with variants (full, dot, icon)
 - `src/components/settings/SettingsPage.tsx` - Tab-based settings with role-based access
 - `src/components/editors/RichTextEditor.tsx` - TipTap-based rich text editor
 
@@ -431,16 +432,15 @@ All API clients use the centralized client factory (`src/lib/api/client-factory.
 ### Specialized Hooks
 - `useDocumentActions()` - Document operations (parse, save, etc.)
 - `useDocumentUpload()` - File upload with progress tracking
+- `useDocumentSelection()` - Shared selection logic for document lists (shift-click range selection)
 - `useExcelChat()` - Excel-specific chat functionality
-- `useRagChat()` - RAG chat integration with Gemini semantic search
-- `useIngestionJobs()` - Document ingestion job management
 - `useFolderActions()` - Folder-specific operations
 - `useAllDocuments()` - Cross-organization document access
 - `useRecentActivity()` - Activity feed management
 
-### Conversational RAG (`useRagChat` Hook)
+### Conversational RAG (RAG Hooks)
 
-The `useRagChat` hook (`src/hooks/useRagChat.ts`) manages conversational RAG with the unified DocumentAgent chat endpoint.
+The RAG hooks in `src/hooks/rag/` manage conversational RAG with the unified DocumentAgent chat endpoint.
 
 **State:**
 ```typescript
@@ -524,7 +524,7 @@ interface SearchHistoryItem {
 }
 ```
 
-**API Client** (`src/lib/api/ingestion.ts`):
+**API Client** (`src/lib/api/ingestion/index.ts`):
 ```typescript
 // Unified DocumentAgent chat (calls /api/v1/documents/chat)
 chatWithDocuments(request: DocumentChatRequest): Promise<DocumentChatResponse>

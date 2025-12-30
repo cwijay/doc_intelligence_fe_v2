@@ -679,3 +679,33 @@ export interface ErrorResponse {
   timestamp: string;
   path?: string;
 }
+
+// ============================================================================
+// Load Parsed Content Types (Content API)
+// ============================================================================
+
+/**
+ * Request to load pre-parsed content from GCS
+ */
+export interface LoadParsedRequest {
+  org_name: string;
+  folder_name: string;
+  document_name: string;
+}
+
+/**
+ * Response with loaded parsed content - matches DocumentParseResponse format
+ */
+export interface LoadParsedResponse extends DocumentParseResponse {
+  // Inherits all fields from DocumentParseResponse
+  // parsing_metadata.source will be 'gcs_load' to indicate loaded content
+}
+
+/**
+ * Response for checking if parsed content exists
+ */
+export interface CheckParsedExistsResponse {
+  exists: boolean;
+  path: string;
+  error?: string;
+}

@@ -11,6 +11,7 @@ import {
   QuestionMarkCircleIcon,
   AcademicCapIcon,
   ChatBubbleLeftIcon,
+  TableCellsIcon,
   EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
 import { CheckIcon } from '@heroicons/react/24/solid';
@@ -42,11 +43,13 @@ export default function DocumentCard({
   onDownload,
   onDelete,
   onParse,
+  onLoadParsed,
   onSummarize,
   onFaq,
   onQuestions,
   onChat,
   onAnalyse,
+  onExtract,
   isProcessing = {},
   viewMode = 'grid',
   className,
@@ -294,6 +297,21 @@ export default function DocumentCard({
               </button>
             )}
 
+            {onExtract && isDocumentParsed(document) && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onExtract();
+                }}
+                disabled={isProcessing.extracting}
+                className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                title="Extract data"
+              >
+                <TableCellsIcon className="w-4 h-4 text-orange-500" />
+              </button>
+            )}
+
             {(onView || onDownload || onDelete) && (
               <button
                 className="p-1.5 rounded hover:bg-gray-100 transition-colors"
@@ -400,11 +418,13 @@ export default function DocumentCard({
             document={document}
             isProcessing={isProcessing}
             onParse={onParse}
+            onLoadParsed={onLoadParsed}
             onSummarize={onSummarize}
             onFaq={onFaq ? handleFaqClick : undefined}
             onQuestions={onQuestions ? handleQuestionsClick : undefined}
             onChat={onChat}
             onAnalyse={onAnalyse}
+            onExtract={onExtract}
             onView={onView}
             onDownload={onDownload}
             onDelete={onDelete ? () => setShowDeleteConfirm(true) : undefined}

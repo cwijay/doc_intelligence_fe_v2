@@ -25,11 +25,15 @@ const QUERY_KEYS = {
 };
 
 export const useFolders = (orgId: string, filters?: FolderFilters, enabled = true) => {
+  // Check if user is authenticated (has valid token)
+  const hasValidToken = !!authService.getAccessToken();
+
   console.log('🔍 useFolders Hook Debug:', {
     orgId,
     filters,
     enabled,
-    queryEnabled: enabled && !!orgId,
+    hasValidToken,
+    queryEnabled: enabled && !!orgId && hasValidToken,
     timestamp: new Date().toISOString()
   });
 
@@ -37,6 +41,14 @@ export const useFolders = (orgId: string, filters?: FolderFilters, enabled = tru
     queryKey: QUERY_KEYS.foldersList(orgId, filters),
     queryFn: async () => {
       console.log('🔍 useFolders queryFn executing:', { orgId, filters });
+
+      // Double-check authentication before making request
+      const token = authService.getAccessToken();
+      if (!token) {
+        console.warn('⚠️ useFolders: No auth token available, returning empty list');
+        return { folders: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
+      }
+
       try {
         const result = await foldersApi.list(orgId, filters);
         console.log('✅ useFolders API Success:', {
@@ -56,7 +68,7 @@ export const useFolders = (orgId: string, filters?: FolderFilters, enabled = tru
         throw error;
       }
     },
-    enabled: enabled && !!orgId,
+    enabled: enabled && !!orgId && hasValidToken,
     staleTime: 0, // Always fetch fresh data
   });
 };
@@ -206,10 +218,20 @@ export const useMoveFolder = () => {
 };
 
 export const useFolderDocuments = (orgId: string, folderId: string, folderName: string, enabled = true) => {
+  // Check if user is authenticated (has valid token)
+  const hasValidToken = !!authService.getAccessToken();
+
   return useQuery({
     queryKey: QUERY_KEYS.folderDocuments(orgId, folderId),
     queryFn: async () => {
       console.log('🔍 useFolderDocuments START:', { orgId, folderId, folderName });
+
+      // Double-check authentication before making request
+      const token = authService.getAccessToken();
+      if (!token) {
+        console.warn('⚠️ useFolderDocuments: No auth token available, returning empty list');
+        return { documents: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
+      }
 
       // folderName is now passed directly to avoid HTTP caching issues
       console.log('📁 Using folder name:', { folderId, folderName });
@@ -348,16 +370,31 @@ export const useFolderDocuments = (orgId: string, folderId: string, folderName: 
         };
       }
     },
-    enabled: enabled && !!orgId && !!folderId,
+    enabled: enabled && !!orgId && !!folderId && hasValidToken,
     staleTime: 0, // Always fetch fresh data
   });
 };
 
 export const useDocumentStats = (orgId: string, enabled = true) => {
+  // Check if user is authenticated (has valid token)
+  const hasValidToken = !!authService.getAccessToken();
+
   return useQuery({
     queryKey: ['documents', orgId, 'stats'],
     queryFn: async () => {
       console.log('📊 useDocumentStats: Fetching stats for org:', orgId);
+
+      // Double-check authentication before making request
+      const token = authService.getAccessToken();
+      if (!token) {
+        console.warn('⚠️ useDocumentStats: No auth token available, returning fallback data');
+        return {
+          total_documents: 0,
+          total_folders: 0,
+          storage_used: 0,
+          created_this_month: 0,
+        };
+      }
 
       try {
         // Use the existing documents list API to get total count and calculate storage
@@ -415,7 +452,7 @@ export const useDocumentStats = (orgId: string, enabled = true) => {
         };
       }
     },
-    enabled: enabled && !!orgId,
+    enabled: enabled && !!orgId && hasValidToken,
     staleTime: 2 * 60 * 1000, // 2 minutes (stats should be relatively fresh)
     retry: 2, // Retry up to 2 times before using fallback data
   });

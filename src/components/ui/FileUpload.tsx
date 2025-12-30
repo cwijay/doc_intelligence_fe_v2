@@ -17,6 +17,7 @@ import { clsx } from 'clsx';
 import Button from './Button';
 import { Folder, Document } from '@/types/api';
 import { fileUtils } from '@/lib/file-utils';
+import { formatFileSize } from '@/lib/file-types';
 import toast from 'react-hot-toast';
 
 interface FileWithProgress extends File {
@@ -165,20 +166,6 @@ export default function FileUpload({
     maxSize,
     accept: acceptedTypes.reduce((acc, type) => ({ ...acc, [type]: [] }), {}),
   });
-
-  const formatFileSize = (bytes: number) => {
-    // Handle undefined, null, or NaN values
-    if (!bytes || isNaN(bytes) || bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    const formattedSize = parseFloat((bytes / Math.pow(k, i)).toFixed(2));
-    
-    // Ensure formattedSize is not NaN
-    if (isNaN(formattedSize)) return '0 Bytes';
-    
-    return formattedSize + ' ' + sizes[i];
-  };
 
   const getFileIcon = (file: FileWithProgress) => {
     // Check if file.type exists and is a string before using startsWith

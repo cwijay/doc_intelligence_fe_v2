@@ -16,14 +16,15 @@ import {
   ChatBubbleLeftIcon,
   ChartBarIcon,
   CheckCircleIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
+  CloudArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { Document, DocumentStatus } from '@/types/api';
 import { getFileTypeInfo, formatFileSize } from '@/lib/file-types';
 import { isDocumentParsed } from '@/lib/document-utils';
 import { isSpreadsheetFile } from '@/lib/file-utils';
 import Button from '@/components/ui/Button';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import DocumentContentModal from './DocumentContentModal';
 
 interface DocumentTableViewProps {
   documents: Document[];
@@ -36,12 +37,14 @@ interface DocumentTableViewProps {
   onDownload?: (document: Document) => void;
   onDelete?: (document: Document) => void;
   onParse?: (document: Document) => void;
+  onLoadParsed?: (document: Document) => void;
   onSummarize?: (document: Document) => void;
   onFaq?: (document: Document, count?: number) => void;
   onQuestions?: (document: Document, count?: number) => void;
   onChat?: (document: Document) => void;
   onAnalyse?: (document: Document) => void;
   parsingDocuments?: Set<string>;
+  loadingParsedDocuments?: Set<string>;
   summarizingDocuments?: Set<string>;
   faqGeneratingDocuments?: Set<string>;
   questionsGeneratingDocuments?: Set<string>;
@@ -59,60 +62,6 @@ interface SortConfig {
   field: SortField;
   direction: SortDirection;
 }
-
-// Status badge component
-const StatusBadge = ({ status }: { status: DocumentStatus }) => {
-  const config: Record<string, { bg: string; text: string; icon: any; label: string }> = {
-    uploaded: {
-      bg: 'bg-yellow-100 dark:bg-yellow-900/30',
-      text: 'text-yellow-700 dark:text-yellow-300',
-      icon: ClockIcon,
-      label: 'Uploaded'
-    },
-    processing: {
-      bg: 'bg-blue-100 dark:bg-blue-900/30',
-      text: 'text-blue-700 dark:text-blue-300',
-      icon: ArrowPathIcon,
-      label: 'Processing'
-    },
-    processed: {
-      bg: 'bg-green-100 dark:bg-green-900/30',
-      text: 'text-green-700 dark:text-green-300',
-      icon: CheckCircleIcon,
-      label: 'Ready'
-    },
-    parsed: {
-      bg: 'bg-green-100 dark:bg-green-900/30',
-      text: 'text-green-700 dark:text-green-300',
-      icon: CheckCircleIcon,
-      label: 'Parsed'
-    },
-    error: {
-      bg: 'bg-red-100 dark:bg-red-900/30',
-      text: 'text-red-700 dark:text-red-300',
-      icon: ExclamationTriangleIcon,
-      label: 'Error'
-    },
-    failed: {
-      bg: 'bg-red-100 dark:bg-red-900/30',
-      text: 'text-red-700 dark:text-red-300',
-      icon: ExclamationTriangleIcon,
-      label: 'Failed'
-    },
-  };
-
-  const { bg, text, icon: Icon, label } = config[status] || config.uploaded;
-
-  return (
-    <span className={clsx(
-      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
-      bg, text
-    )}>
-      <Icon className={clsx('w-3 h-3', status === 'processing' && 'animate-spin')} />
-      {label}
-    </span>
-  );
-};
 
 // Type badge component
 const TypeBadge = ({ name, type }: { name: string; type?: string }) => {
@@ -247,12 +196,14 @@ export default function DocumentTableView({
   onSearchChange,
   onRefresh,
   onParse,
+  onLoadParsed,
   onSummarize,
   onFaq,
   onQuestions,
   onChat,
   onAnalyse,
   parsingDocuments = new Set(),
+  loadingParsedDocuments = new Set(),
   summarizingDocuments = new Set(),
   faqGeneratingDocuments = new Set(),
   questionsGeneratingDocuments = new Set(),
@@ -266,6 +217,7 @@ export default function DocumentTableView({
     field: 'uploaded_at',
     direction: 'desc',
   });
+  const [selectedDocumentForModal, setSelectedDocumentForModal] = useState<Document | null>(null);
 
   // Filter and sort documents
   const processedDocuments = useMemo(() => {
@@ -491,6 +443,7 @@ export default function DocumentTableView({
                 const isHighlighted = highlightedDocumentId === document.id;
                 const isSelected = selectedDocuments.has(document.id);
                 const isParsing = parsingDocuments.has(document.id);
+                const isLoadingParsed = loadingParsedDocuments.has(document.id);
                 const isParsed = isDocumentParsed(document);
                 const isSummarizing = summarizingDocuments.has(document.id);
                 const isFaqGenerating = faqGeneratingDocuments.has(document.id);
@@ -532,9 +485,13 @@ export default function DocumentTableView({
                         )}>
                           <FileIcon className={clsx('w-4 h-4', fileInfo.color)} />
                         </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-xs">
+                        <button
+                          onClick={() => setSelectedDocumentForModal(document)}
+                          className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline truncate max-w-xs text-left focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded"
+                          title="Click to view document content"
+                        >
                           {document.name}
-                        </span>
+                        </button>
                       </div>
                     </td>
 
@@ -573,11 +530,23 @@ export default function DocumentTableView({
                           icon={isParsed ? CheckCircleIcon : CpuChipIcon}
                           label={isParsed ? 'Already parsed' : 'Parse document'}
                           onClick={() => onParse?.(document)}
-                          disabled={isParsing || isParsed}
+                          disabled={isParsing || isLoadingParsed || isParsed}
                           isProcessing={isParsing}
                           isCompleted={isParsed}
                           colorClass="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                         />
+
+                        {/* Load Parsed */}
+                        {onLoadParsed && (
+                          <ActionButton
+                            icon={CloudArrowDownIcon}
+                            label={isParsed ? 'Load pre-parsed content from storage' : 'Parse first to load content'}
+                            onClick={() => onLoadParsed(document)}
+                            disabled={!isParsed || isParsing || isLoadingParsed}
+                            isProcessing={isLoadingParsed}
+                            colorClass="text-cyan-500 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300"
+                          />
+                        )}
 
                         {/* Summary */}
                         <ActionButton
@@ -646,6 +615,13 @@ export default function DocumentTableView({
           </span>
         )}
       </div>
+
+      {/* Document Content Modal */}
+      <DocumentContentModal
+        document={selectedDocumentForModal}
+        isOpen={!!selectedDocumentForModal}
+        onClose={() => setSelectedDocumentForModal(null)}
+      />
     </div>
   );
 }

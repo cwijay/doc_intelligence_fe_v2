@@ -2,7 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { documentsApi, usersApi, foldersApi } from '@/lib/api/index';
+import { authService } from '@/lib/auth';
 import { formatDistanceToNow } from 'date-fns';
+import { Document } from '@/types/api';
 
 export interface Activity {
   type: 'upload' | 'processed' | 'processing' | 'error' | 'user' | 'folder';
@@ -10,13 +12,24 @@ export interface Activity {
   time: string; // relative time like "2 minutes ago"
   status: 'success' | 'error' | 'info';
   timestamp: Date; // for sorting
+  document?: Document; // optional document reference for clickable names
 }
 
 export const useRecentActivity = (orgId: string, enabled = true) => {
+  // Check if user is authenticated (has valid token)
+  const hasValidToken = !!authService.getAccessToken();
+
   return useQuery({
     queryKey: ['recent-activity', orgId],
     queryFn: async (): Promise<Activity[]> => {
       if (!orgId) {
+        return [];
+      }
+
+      // Double-check authentication before making request
+      const token = authService.getAccessToken();
+      if (!token) {
+        console.warn('⚠️ useRecentActivity: No auth token available, returning empty list');
         return [];
       }
 
@@ -61,7 +74,8 @@ export const useRecentActivity = (orgId: string, enabled = true) => {
             message: `${doc.name} uploaded successfully`,
             time: formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true }),
             status: 'success',
-            timestamp: new Date(doc.uploaded_at)
+            timestamp: new Date(doc.uploaded_at),
+            document: doc
           });
         }
 
@@ -72,7 +86,8 @@ export const useRecentActivity = (orgId: string, enabled = true) => {
             message: `${doc.name} processing completed`,
             time: formatDistanceToNow(new Date(doc.processed_at), { addSuffix: true }),
             status: 'success',
-            timestamp: new Date(doc.processed_at)
+            timestamp: new Date(doc.processed_at),
+            document: doc
           });
         }
 
@@ -83,7 +98,8 @@ export const useRecentActivity = (orgId: string, enabled = true) => {
             message: `${doc.name} is being processed`,
             time: formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true }),
             status: 'info',
-            timestamp: new Date(doc.uploaded_at)
+            timestamp: new Date(doc.uploaded_at),
+            document: doc
           });
         }
 
@@ -95,7 +111,8 @@ export const useRecentActivity = (orgId: string, enabled = true) => {
             message: `Failed to process ${doc.name}${errorMsg}`,
             time: formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true }),
             status: 'error',
-            timestamp: new Date(doc.uploaded_at)
+            timestamp: new Date(doc.uploaded_at),
+            document: doc
           });
         }
       });
@@ -131,7 +148,7 @@ export const useRecentActivity = (orgId: string, enabled = true) => {
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, 4);
     },
-    enabled: enabled && !!orgId,
+    enabled: enabled && !!orgId && hasValidToken,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes for real-time feel
   });

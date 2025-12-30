@@ -10,7 +10,7 @@ import {
 } from '@/types/rag';
 import { Document } from '@/types/api';
 import { simpleRagApiClient } from '@/lib/api/rag';
-import { chatWithDocuments } from '@/lib/api/ingestion';
+import { chatWithDocuments } from '@/lib/api/ingestion/index';
 import { useAuth } from '@/hooks/useAuth';
 import { foldersApi } from '@/lib/api/index';
 import {

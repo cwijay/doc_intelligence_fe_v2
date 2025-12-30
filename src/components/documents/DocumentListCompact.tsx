@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useDocumentSelection } from '@/hooks/useDocumentSelection';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DocumentTextIcon,
@@ -18,10 +19,12 @@ import {
   SparklesIcon,
   ClockIcon,
   ArrowPathIcon,
-  EyeIcon
+  EyeIcon,
+  CloudArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { Document, DocumentStatus } from '@/types/api';
 import Button from '@/components/ui/Button';
+import { formatFileSize } from '@/lib/file-types';
 import CountSelector from '@/components/ui/CountSelector';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { formatDistanceToNow } from 'date-fns';
@@ -58,12 +61,14 @@ interface DocumentListCompactProps {
   onDownload?: (document: Document) => void;
   onDelete?: (document: Document) => void;
   onParse?: (document: Document) => void;
+  onLoadParsed?: (document: Document) => void;
   onSummarize?: (document: Document) => void;
   onFaq?: (document: Document, count?: number) => void;
   onQuestions?: (document: Document, count?: number) => void;
   onChat?: (document: Document) => void;
   onAnalyse?: (document: Document) => void;
   parsingDocuments?: Set<string>;
+  loadingParsedDocuments?: Set<string>;
   summarizingDocuments?: Set<string>;
   faqGeneratingDocuments?: Set<string>;
   questionsGeneratingDocuments?: Set<string>;
@@ -94,14 +99,6 @@ const getStatusDot = (status: DocumentStatus) => {
   );
 };
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
-
 const getFileIcon = (type: string) => {
   const iconClass = "w-4 h-4 text-gray-400";
   return <DocumentTextIcon className={iconClass} />;
@@ -116,12 +113,14 @@ export default function DocumentListCompact({
   onDownload,
   onDelete,
   onParse,
+  onLoadParsed,
   onSummarize,
   onFaq,
   onQuestions,
   onChat,
   onAnalyse,
   parsingDocuments = new Set(),
+  loadingParsedDocuments = new Set(),
   summarizingDocuments = new Set(),
   faqGeneratingDocuments = new Set(),
   questionsGeneratingDocuments = new Set(),
@@ -167,62 +166,20 @@ export default function DocumentListCompact({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenuId]);
 
-  const handleSelectAll = () => {
-    if (!onSelectionChange || !enableSelection) return;
-    
-    const parsedDocuments = documents.filter(doc => isDocumentParsed(doc));
-    const allParsedSelected = parsedDocuments.length > 0 && 
-      parsedDocuments.every(doc => selectedDocuments.has(doc.id));
-    
-    if (allParsedSelected) {
-      onSelectionChange(new Set());
-    } else {
-      onSelectionChange(new Set(parsedDocuments.map(doc => doc.id)));
-    }
-  };
-
-  const handleSelectDocument = (documentId: string, event?: React.MouseEvent) => {
-    if (!onSelectionChange || !enableSelection) return;
-    
-    const document = documents.find(doc => doc.id === documentId);
-    if (!document || !isDocumentParsed(document)) {
-      return;
-    }
-    
-    const newSelection = new Set(selectedDocuments);
-    
-    if (event?.shiftKey && documents.length > 0) {
-      const clickedIndex = documents.findIndex(doc => doc.id === documentId);
-      const lastSelectedIndex = documents.findIndex(doc => 
-        Array.from(selectedDocuments).includes(doc.id)
-      );
-      
-      if (lastSelectedIndex !== -1 && clickedIndex !== -1) {
-        const start = Math.min(clickedIndex, lastSelectedIndex);
-        const end = Math.max(clickedIndex, lastSelectedIndex);
-        
-        for (let i = start; i <= end; i++) {
-          if (isDocumentParsed(documents[i])) {
-            newSelection.add(documents[i].id);
-          }
-        }
-      } else {
-        if (newSelection.has(documentId)) {
-          newSelection.delete(documentId);
-        } else {
-          newSelection.add(documentId);
-        }
-      }
-    } else {
-      if (newSelection.has(documentId)) {
-        newSelection.delete(documentId);
-      } else {
-        newSelection.add(documentId);
-      }
-    }
-    
-    onSelectionChange(newSelection);
-  };
+  // Use shared selection hook
+  const {
+    handleSelectAll,
+    handleSelectDocument,
+    isAllSelected,
+    isIndeterminate,
+    selectableDocuments: parsedDocuments,
+  } = useDocumentSelection({
+    documents,
+    selectedDocuments,
+    onSelectionChange,
+    enableSelection,
+    requireParsed: true,
+  });
 
   const handleFaqGenerate = (document: Document, count?: number) => {
     const finalCount = count || faqCounts[document.id] || 10;
@@ -247,11 +204,6 @@ export default function DocumentListCompact({
     }
     setQuestionsSelectorOpen(null);
   };
-
-  const parsedDocuments = documents.filter(doc => isDocumentParsed(doc));
-  const isAllSelected = parsedDocuments.length > 0 && 
-    parsedDocuments.every(doc => selectedDocuments.has(doc.id));
-  const isIndeterminate = parsedDocuments.some(doc => selectedDocuments.has(doc.id)) && !isAllSelected;
 
   if (loading) {
     return (
@@ -418,10 +370,10 @@ export default function DocumentListCompact({
                     {onParse && (
                       <button
                         onClick={() => onParse(document)}
-                        disabled={parsingDocuments.has(document.id)}
+                        disabled={parsingDocuments.has(document.id) || loadingParsedDocuments.has(document.id)}
                         className={clsx(
                           "p-1.5 rounded hover:bg-gray-100 transition-colors",
-                          parsingDocuments.has(document.id) && "opacity-50 cursor-not-allowed"
+                          (parsingDocuments.has(document.id) || loadingParsedDocuments.has(document.id)) && "opacity-50 cursor-not-allowed"
                         )}
                         title={parsingDocuments.has(document.id) ? "Parsing..." : "Parse document"}
                       >
@@ -435,7 +387,26 @@ export default function DocumentListCompact({
                         )}
                       </button>
                     )}
-                    
+
+                    {/* Load Parsed Button */}
+                    {onLoadParsed && (
+                      <button
+                        onClick={() => onLoadParsed(document)}
+                        disabled={!isDocumentParsed(document) || parsingDocuments.has(document.id) || loadingParsedDocuments.has(document.id)}
+                        className={clsx(
+                          "p-1.5 rounded hover:bg-gray-100 transition-colors",
+                          (!isDocumentParsed(document) || parsingDocuments.has(document.id) || loadingParsedDocuments.has(document.id)) && "opacity-50 cursor-not-allowed"
+                        )}
+                        title={!isDocumentParsed(document) ? "Parse first to load content" : loadingParsedDocuments.has(document.id) ? "Loading..." : "Load pre-parsed content"}
+                      >
+                        {loadingParsedDocuments.has(document.id) ? (
+                          <ArrowPathIcon className="w-4 h-4 text-cyan-400 animate-spin" />
+                        ) : (
+                          <CloudArrowDownIcon className="w-4 h-4 text-cyan-500" />
+                        )}
+                      </button>
+                    )}
+
                     {/* Summarize Button */}
                     {onSummarize && (
                       <button

@@ -10,9 +10,11 @@ import {
   AcademicCapIcon,
   ChatBubbleLeftIcon,
   ChartBarIcon,
+  TableCellsIcon,
   EyeIcon,
   ArrowDownTrayIcon,
   TrashIcon,
+  CloudArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 import {
@@ -40,11 +42,13 @@ interface DocumentCardActionsProps {
   document: Document;
   isProcessing: ProcessingState;
   onParse?: () => void;
+  onLoadParsed?: () => void;
   onSummarize?: () => void;
   onFaq?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onQuestions?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onChat?: () => void;
   onAnalyse?: () => void;
+  onExtract?: () => void;
   onView?: () => void;
   onDownload?: () => void;
   onDelete?: () => void;
@@ -54,11 +58,13 @@ export function DocumentCardActions({
   document,
   isProcessing,
   onParse,
+  onLoadParsed,
   onSummarize,
   onFaq,
   onQuestions,
   onChat,
   onAnalyse,
+  onExtract,
   onView,
   onDownload,
   onDelete,
@@ -76,11 +82,28 @@ export function DocumentCardActions({
         e.stopPropagation();
         onParse();
       },
-      disabled: isProcessing.parsing,
+      disabled: isProcessing.parsing || isProcessing.loadingParsed,
       color: isDocumentParsed(document) ? 'text-green-500' : 'text-blue-500',
       bgColor: isDocumentParsed(document) ? 'hover:bg-green-50' : 'hover:bg-blue-50',
       isProcessing: isProcessing.parsing,
       isCompleted: isDocumentParsed(document),
+    });
+  }
+
+  // Load Parsed action (loads pre-parsed content from GCS)
+  if (onLoadParsed) {
+    primaryActions.push({
+      icon: isProcessing.loadingParsed ? ArrowPathIcon : CloudArrowDownIcon,
+      label: 'Load Parsed',
+      onClick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onLoadParsed();
+      },
+      disabled: isProcessing.loadingParsed || isProcessing.parsing || !isDocumentParsed(document),
+      color: 'text-cyan-500',
+      bgColor: 'hover:bg-cyan-50',
+      isProcessing: isProcessing.loadingParsed,
     });
   }
 
@@ -149,6 +172,23 @@ export function DocumentCardActions({
       },
       color: 'text-indigo-500',
       bgColor: 'hover:bg-indigo-50',
+    });
+  }
+
+  // Extract action - only for parsed documents (not spreadsheets)
+  if (onExtract && isDocumentParsed(document) && !isSpreadsheetFile(document)) {
+    primaryActions.push({
+      icon: isProcessing.extracting ? ArrowPathIcon : TableCellsIcon,
+      label: 'Extract',
+      onClick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onExtract();
+      },
+      disabled: isProcessing.extracting,
+      color: 'text-orange-500',
+      bgColor: 'hover:bg-orange-50',
+      isProcessing: isProcessing.extracting,
     });
   }
 

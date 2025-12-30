@@ -301,18 +301,22 @@ export const getFileTypeInfo = (filename: string, mimeType?: string): FileTypeIn
 };
 
 export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
-  
+  // Handle undefined, null, NaN, or zero values
+  if (!bytes || isNaN(bytes) || bytes === 0) return '0 B';
+
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   const size = parseFloat((bytes / Math.pow(k, i)).toFixed(1));
-  
+
+  // Handle NaN from calculation
+  if (isNaN(size)) return '0 B';
+
   // Don't show decimal for bytes
   if (i === 0) {
     return `${Math.round(size)} ${sizes[i]}`;
   }
-  
+
   return `${size} ${sizes[i]}`;
 };
