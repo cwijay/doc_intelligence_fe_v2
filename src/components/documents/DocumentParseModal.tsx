@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useModalResize, ResizeHandle } from '@/hooks/useModalResize';
 import Modal from '@/components/ui/Modal';
 import { DocumentParseResponse, Document } from '@/types/api';
 import ReactMarkdown from 'react-markdown';
@@ -17,7 +18,7 @@ import {
   EyeIcon,
   TableCellsIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 import RichTextEditor from '@/components/editors/RichTextEditor';
@@ -47,7 +48,7 @@ interface DocumentParseModalProps {
   document: Document | null;
   parseData: DocumentParseResponse | null;
   onSave?: (editedContent: string) => Promise<void>;
-  onExtract?: () => void;
+  onExtract?: (parseData: DocumentParseResponse | null) => void;
   /** Whether indexing is required before closing (default: true) */
   requireIndexing?: boolean;
 }
@@ -70,18 +71,40 @@ export default function DocumentParseModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isIndexed, setIsIndexed] = useState(false);
 
-  useEffect(() => {
-    if (parseData?.parsed_content) {
-      setEditedContent(parseData.parsed_content);
-    }
-  }, [parseData]);
-
   // Reset isIndexed when modal opens with new document
   useEffect(() => {
     if (isOpen) {
       setIsIndexed(false);
     }
   }, [isOpen, document?.id]);
+
+  // Modal resize functionality
+  const {
+    width: modalWidth,
+    height: modalHeight,
+    isDragging,
+    activeHandle,
+    getHandleProps,
+  } = useModalResize({
+    initialWidth: 1152, // Same as 4xl (max-w-6xl)
+    initialHeight: 700,
+    minWidth: 600,
+    maxWidth: typeof window !== 'undefined' ? window.innerWidth * 0.95 : 1400,
+    minHeight: 400,
+    maxHeight: typeof window !== 'undefined' ? window.innerHeight * 0.95 : 900,
+  });
+
+  // Calculate content height based on modal height
+  const contentHeight = useMemo(() => {
+    // Subtract space for header (~80px), tabs (~60px), and padding (~48px)
+    return Math.max(300, modalHeight - 188);
+  }, [modalHeight]);
+
+  useEffect(() => {
+    if (parseData?.parsed_content) {
+      setEditedContent(parseData.parsed_content);
+    }
+  }, [parseData]);
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -101,20 +124,11 @@ export default function DocumentParseModal({
   };
 
   /**
-   * Handle close attempt - only allow if indexed or indexing not required
+   * Handle close - always allow closing
    */
   const handleClose = () => {
-    if (requireIndexing && !isIndexed) {
-      // Don't close if indexing is required but not done
-      return;
-    }
     onClose();
   };
-
-  /**
-   * Check if close button should be disabled
-   */
-  const isCloseDisabled = requireIndexing && !isIndexed;
 
   const tabs = [
     {
@@ -226,18 +240,6 @@ export default function DocumentParseModal({
                       </button>
                     </div>
                     <div className="flex space-x-2">
-                      {onExtract && (
-                        <button
-                          onClick={() => {
-                            onClose();
-                            onExtract();
-                          }}
-                          className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors flex items-center"
-                        >
-                          <TableCellsIcon className="w-4 h-4 mr-2" />
-                          Extract Data
-                        </button>
-                      )}
                       <button
                         onClick={handleSave}
                         disabled={isSaving}
@@ -255,6 +257,18 @@ export default function DocumentParseModal({
                           'Save & Index Document'
                         )}
                       </button>
+                      {onExtract && (
+                        <button
+                          onClick={() => {
+                            onExtract(parseData);
+                            onClose();
+                          }}
+                          className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors flex items-center"
+                        >
+                          <TableCellsIcon className="w-4 h-4 mr-2" />
+                          Extract Data
+                        </button>
+                      )}
                       {isEditing && (
                         <button
                           onClick={() => {
@@ -281,10 +295,13 @@ export default function DocumentParseModal({
                       setEditedContent(content);
                       setIsEditing(true);
                     }}
-                    className="h-[600px]"
+                    style={{ height: contentHeight - 100 }}
                   />
                 ) : previewMode === 'preview' ? (
-                  <div className="p-4 h-[600px] overflow-y-auto prose prose-sm max-w-none">
+                  <div
+                    className="p-4 overflow-y-auto prose prose-sm max-w-none"
+                    style={{ height: contentHeight - 100 }}
+                  >
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeRaw, [rehypeSanitize, tableSchema]]}
@@ -326,7 +343,7 @@ export default function DocumentParseModal({
                     </ReactMarkdown>
                   </div>
                 ) : (
-                  <div className="flex h-[600px]">
+                  <div className="flex" style={{ height: contentHeight - 100 }}>
                     <div className="w-1/2 border-r border-secondary-200 overflow-hidden">
                       <RichTextEditor
                         content={editedContent}
@@ -570,47 +587,58 @@ export default function DocumentParseModal({
     return null;
   }
 
+  // Resize handle component
+  const ResizeHandleElement = ({ handle, className }: { handle: ResizeHandle; className: string }) => (
+    <div
+      {...getHandleProps(handle)}
+      className={clsx(
+        'absolute z-50 transition-colors',
+        isDragging && activeHandle === handle
+          ? 'bg-primary-500'
+          : 'hover:bg-primary-400/50',
+        className
+      )}
+    />
+  );
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
       title={`Parse Results: ${document.name}`}
-      size="4xl"
-      className="max-h-[90vh]"
-      showCloseButton={!isCloseDisabled}
+      customWidth={modalWidth}
+      customHeight={modalHeight}
+      className={clsx('relative', isDragging && 'select-none')}
+      showCloseButton
     >
+      {/* Resize Handles */}
+      {/* Corners */}
+      <ResizeHandleElement handle="top-left" className="top-0 left-0 w-3 h-3 cursor-nwse-resize rounded-tl-2xl" />
+      <ResizeHandleElement handle="top-right" className="top-0 right-0 w-3 h-3 cursor-nesw-resize rounded-tr-2xl" />
+      <ResizeHandleElement handle="bottom-left" className="bottom-0 left-0 w-3 h-3 cursor-nesw-resize rounded-bl-2xl" />
+      <ResizeHandleElement handle="bottom-right" className="bottom-0 right-0 w-3 h-3 cursor-nwse-resize rounded-br-2xl" />
+      {/* Edges */}
+      <ResizeHandleElement handle="top" className="top-0 left-3 right-3 h-1 cursor-ns-resize" />
+      <ResizeHandleElement handle="bottom" className="bottom-0 left-3 right-3 h-1 cursor-ns-resize" />
+      <ResizeHandleElement handle="left" className="left-0 top-3 bottom-3 w-1 cursor-ew-resize" />
+      <ResizeHandleElement handle="right" className="right-0 top-3 bottom-3 w-1 cursor-ew-resize" />
+
       <div className="space-y-6">
         {/* Indexing status banner */}
         {requireIndexing && (
           isIndexed ? (
-            <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                  Document indexed successfully
-                </p>
-                <p className="text-xs text-green-600 dark:text-green-400">
-                  You can now close this window or continue editing
-                </p>
-              </div>
-              <button
-                onClick={onClose}
-                className="px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-800 rounded-md hover:bg-green-200 dark:hover:bg-green-700 transition-colors"
-              >
-                Close
-              </button>
+            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <CheckCircleIcon className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <p className="text-sm text-green-700 dark:text-green-300">
+                Document indexed successfully
+              </p>
             </div>
           ) : (
-            <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  Document must be indexed before closing
-                </p>
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Click "Save & Index Document" to enable search and complete the workflow
-                </p>
-              </div>
+            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Click "Save & Index Document" to index this document for search
+              </p>
             </div>
           )
         )}
@@ -649,7 +677,10 @@ export default function DocumentParseModal({
           </nav>
         </div>
 
-        <div className="max-h-[75vh] overflow-y-auto">
+        <div
+          className="overflow-y-auto"
+          style={{ maxHeight: contentHeight }}
+        >
           {renderTabContent()}
         </div>
       </div>

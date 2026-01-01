@@ -1,42 +1,55 @@
 import { Document } from '@/types/api';
+import {
+  constructParsedPath,
+  getBaseName,
+  type PathParams,
+} from '@/lib/gcs-paths';
 
 /**
  * Utility functions for constructing paths required by the Enhanced RAG API
  * Handles dynamic path construction for document_paths and bm_25_paths
+ *
+ * NOTE: For new code, prefer using the centralized utilities in '@/lib/gcs-paths'.
+ * This module provides backwards compatibility and RAG-specific helpers.
  */
 
 /**
  * Extract filename without extension from document name
  * Example: "report.pdf" -> "report", "data.xlsx" -> "data"
+ *
+ * @deprecated Use getBaseName from '@/lib/gcs-paths' instead
  */
 export const getDocumentNameWithoutExtension = (documentName: string): string => {
-  const lastDotIndex = documentName.lastIndexOf('.');
-  return lastDotIndex > 0 ? documentName.substring(0, lastDotIndex) : documentName;
+  return getBaseName(documentName);
 };
 
 /**
  * Construct document path for parsed content in GCS
  * Format: {org_name}/parsed/{folder_name}/{document_name}.md
+ *
+ * @deprecated Use constructParsedPath from '@/lib/gcs-paths' instead
  */
 export const constructDocumentPath = (
   orgName: string,
   folderName: string,
   documentName: string
 ): string => {
-  const nameWithoutExtension = getDocumentNameWithoutExtension(documentName);
-  return `${orgName}/parsed/${folderName}/${nameWithoutExtension}.md`;
+  const params: PathParams = { orgName, folderName, documentName };
+  return constructParsedPath(params);
 };
 
 /**
  * Construct BM25 index path for keyword search
  * Format: {org_name}/bm-25/{folder_name}/{document_name}.pkl
+ *
+ * NOTE: BM25 paths are handled separately and not part of the centralized utility.
  */
 export const constructBM25Path = (
   orgName: string,
   folderName: string,
   documentName: string
 ): string => {
-  const nameWithoutExtension = getDocumentNameWithoutExtension(documentName);
+  const nameWithoutExtension = getBaseName(documentName);
   return `${orgName}/bm-25/${folderName}/${nameWithoutExtension}.pkl`;
 };
 

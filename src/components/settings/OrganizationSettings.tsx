@@ -153,13 +153,13 @@ export default function OrganizationSettings() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-lg">
+          <div className="p-4 bg-gradient-to-r from-brand-cyan-50 to-brand-navy-50 border border-brand-cyan-200 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-primary-900 capitalize">
+                <h4 className="font-medium text-brand-navy-800 capitalize">
                   {currentOrg.plan_type} Plan
                 </h4>
-                <p className="text-sm text-primary-700 mt-1">
+                <p className="text-sm text-brand-navy-600 mt-1">
                   {currentOrg.plan_type === 'free' 
                     ? 'Basic features with limited storage and processing'
                     : `${currentOrg.plan_type} plan with advanced features`

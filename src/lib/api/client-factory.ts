@@ -23,6 +23,8 @@ export interface ApiClientConfig {
   serviceName: string;
   /** Whether to include organization ID header */
   includeOrgHeader?: boolean;
+  /** Whether to use org_name instead of org_id in the header (for AI API) */
+  useOrgName?: boolean;
   /** Whether to enable debug logging (defaults to isDevelopment) */
   debugLogging?: boolean;
   /** Custom error message overrides by status code */
@@ -73,11 +75,18 @@ function createRequestInterceptor(config: ApiClientConfig) {
         requestConfig.headers.Authorization = `${HEADERS.AUTH_SCHEME} ${token}`;
       }
 
-      // Add organization ID header if configured
+      // Add organization header if configured
       if (config.includeOrgHeader !== false) {
         const user = authService.getUser();
-        if (user?.org_id) {
-          requestConfig.headers[HEADERS.ORG_ID] = user.org_id;
+        // AI API expects org_name, Main API expects org_id
+        if (config.useOrgName) {
+          if (user?.org_name) {
+            requestConfig.headers[HEADERS.ORG_ID] = user.org_name;
+          }
+        } else {
+          if (user?.org_id) {
+            requestConfig.headers[HEADERS.ORG_ID] = user.org_id;
+          }
         }
       }
     }
@@ -256,12 +265,14 @@ export const MAIN_API_CONFIG: ApiClientConfig = {
 
 /**
  * Configuration for the AI API client (port 8001)
+ * Note: AI API expects organization NAME in X-Organization-ID header, not UUID
  */
 export const AI_API_CONFIG: ApiClientConfig = {
   baseURL: clientConfig.aiApiBaseUrl,
   timeout: TIMEOUTS.AI_API,
   serviceName: 'AI',
   includeOrgHeader: true,
+  useOrgName: true,  // AI API expects org_name, not org_id UUID
   errorMessages: {
     404: 'Document not found or not yet ingested.',
     429: 'Rate limit exceeded. Please wait before trying again.',
@@ -271,12 +282,14 @@ export const AI_API_CONFIG: ApiClientConfig = {
 
 /**
  * Configuration for the Ingestion API client
+ * Note: Ingestion API expects organization NAME in X-Organization-ID header, not UUID
  */
 export const INGESTION_API_CONFIG: ApiClientConfig = {
   baseURL: clientConfig.ingestApiUrl,
   timeout: TIMEOUTS.AI_API,
   serviceName: 'Ingestion',
   includeOrgHeader: true,
+  useOrgName: true,  // AI API expects org_name, not org_id UUID
   errorMessages: {
     413: 'Document too large for ingestion.',
   },
@@ -284,10 +297,12 @@ export const INGESTION_API_CONFIG: ApiClientConfig = {
 
 /**
  * Configuration for the RAG API client
+ * Note: RAG API expects organization NAME in X-Organization-ID header, not UUID
  */
 export const RAG_API_CONFIG: ApiClientConfig = {
   baseURL: clientConfig.aiApiBaseUrl,
   timeout: TIMEOUTS.RAG_API,
   serviceName: 'RAG',
   includeOrgHeader: true,
+  useOrgName: true,  // AI API expects org_name, not org_id UUID
 };

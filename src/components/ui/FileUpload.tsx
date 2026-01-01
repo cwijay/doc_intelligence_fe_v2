@@ -37,6 +37,14 @@ interface FileUploadProps {
   selectedFolder?: string | null;
   onFolderChange?: (folderId: string | null) => void;
   showFolderSelection?: boolean;
+  /** Upload mode: 'single' uploads immediately, 'bulk' collects files for batch upload */
+  mode?: 'single' | 'bulk';
+  /** Callback for bulk mode - called when user clicks "Start Bulk Upload" */
+  onBulkUpload?: (files: File[], folderName: string) => Promise<void>;
+  /** Whether bulk upload is in progress */
+  isBulkUploading?: boolean;
+  /** Bulk upload progress (0-100) */
+  bulkUploadProgress?: number;
 }
 
 export default function FileUpload({
@@ -44,8 +52,8 @@ export default function FileUpload({
   maxFiles = 10,
   maxSize = 10 * 1024 * 1024, // 10MB
   acceptedTypes = [
-    'application/pdf', 
-    'image/*', 
+    'application/pdf',
+    'image/*',
     'text/*',
     // Excel files
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
@@ -63,12 +71,19 @@ export default function FileUpload({
   selectedFolder,
   onFolderChange,
   showFolderSelection = true,
+  mode = 'single',
+  onBulkUpload,
+  isBulkUploading = false,
+  bulkUploadProgress = 0,
 }: FileUploadProps) {
   const [files, setFiles] = useState<FileWithProgress[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]); // For bulk mode
   const fileIdCounter = useRef(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const isBulkMode = mode === 'bulk';
 
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
     // Check if folder is selected before proceeding
@@ -76,11 +91,38 @@ export default function FileUpload({
       toast.error('Please select a folder before uploading documents');
       return;
     }
-    
+
     if (rejectedFiles.length > 0) {
       console.error('Some files were rejected:', rejectedFiles);
+      rejectedFiles.forEach(rejection => {
+        const errors = rejection.errors.map(e => e.message).join(', ');
+        toast.error(`${rejection.file.name}: ${errors}`);
+      });
     }
 
+    // In bulk mode, collect files without uploading
+    if (isBulkMode) {
+      // Check max files limit
+      const totalFiles = pendingFiles.length + acceptedFiles.length;
+      if (totalFiles > maxFiles) {
+        toast.error(`Maximum ${maxFiles} files allowed. You have ${pendingFiles.length} files, trying to add ${acceptedFiles.length}.`);
+        return;
+      }
+
+      // Add to pending files (avoid duplicates by name)
+      const existingNames = new Set(pendingFiles.map(f => f.name));
+      const newFiles = acceptedFiles.filter(f => !existingNames.has(f.name));
+      const duplicateCount = acceptedFiles.length - newFiles.length;
+
+      if (duplicateCount > 0) {
+        toast(`${duplicateCount} duplicate file(s) skipped`, { icon: 'i' });
+      }
+
+      setPendingFiles(prev => [...prev, ...newFiles]);
+      return;
+    }
+
+    // Single mode - original behavior
     const newFiles: FileWithProgress[] = acceptedFiles.map(file => {
       // Ensure file has valid properties
       const validFile = {
@@ -92,7 +134,7 @@ export default function FileUpload({
         type: file.type || 'application/octet-stream',
         name: file.name || 'unnamed-file'
       };
-      
+
       return validFile;
     });
 
@@ -106,7 +148,7 @@ export default function FileUpload({
     if (onUpload) {
       onUpload(acceptedFiles, selectedFolder || undefined);
     }
-  }, [onUpload, selectedFolder]);
+  }, [onUpload, selectedFolder, isBulkMode, pendingFiles, maxFiles]);
 
   const simulateUpload = (file: FileWithProgress) => {
     const interval = setInterval(() => {
@@ -130,6 +172,53 @@ export default function FileUpload({
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(f => f.id !== fileId));
   };
+
+  // Bulk mode: remove a pending file
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Bulk mode: clear all pending files
+  const clearPendingFiles = () => {
+    setPendingFiles([]);
+  };
+
+  // Bulk mode: start bulk upload
+  const handleStartBulkUpload = async () => {
+    if (!onBulkUpload) {
+      console.error('onBulkUpload callback not provided');
+      return;
+    }
+
+    if (!selectedFolder) {
+      toast.error('Please select a folder before uploading');
+      return;
+    }
+
+    if (pendingFiles.length === 0) {
+      toast.error('No files to upload');
+      return;
+    }
+
+    // Get folder name from selected folder ID
+    const folder = folders.find(f => f.id === selectedFolder);
+    if (!folder) {
+      toast.error('Selected folder not found');
+      return;
+    }
+
+    try {
+      await onBulkUpload(pendingFiles, folder.name);
+      // Clear pending files after successful upload initiation
+      setPendingFiles([]);
+    } catch (err: any) {
+      console.error('Bulk upload failed:', err);
+      toast.error(err.message || 'Bulk upload failed');
+    }
+  };
+
+  // Calculate total size of pending files
+  const totalPendingSize = pendingFiles.reduce((sum, file) => sum + file.size, 0);
 
   const handleFolderSelect = (folderId: string | null) => {
     if (onFolderChange) {
@@ -403,6 +492,111 @@ export default function FileUpload({
                 </div>
               </motion.div>
             ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Mode: Pending Files List */}
+      <AnimatePresence>
+        {isBulkMode && pendingFiles.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-secondary-900">
+                Files to upload ({pendingFiles.length}/{maxFiles})
+              </h4>
+              <button
+                type="button"
+                onClick={clearPendingFiles}
+                className="text-xs text-secondary-500 hover:text-error-600 transition-colors"
+                disabled={isBulkUploading}
+              >
+                Clear all
+              </button>
+            </div>
+
+            <div className="text-xs text-secondary-500 mb-2">
+              Total size: {formatFileSize(totalPendingSize)}
+            </div>
+
+            {/* Pending files list */}
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {pendingFiles.map((file, index) => (
+                <motion.div
+                  key={`${file.name}-${index}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-secondary-200"
+                >
+                  <div className="flex-shrink-0">
+                    <DocumentTextIcon className="w-6 h-6 text-secondary-400" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-secondary-900 truncate">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-secondary-500">
+                      {formatFileSize(file.size)}
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removePendingFile(index)}
+                    className="text-secondary-400 hover:text-error-600"
+                    disabled={isBulkUploading}
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </Button>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Bulk upload progress */}
+            {isBulkUploading && (
+              <div className="mt-4 p-4 bg-primary-50 rounded-lg border border-primary-200">
+                <div className="flex items-center justify-between text-sm text-primary-700 mb-2">
+                  <span className="font-medium">Uploading files...</span>
+                  <span>{Math.round(bulkUploadProgress)}%</span>
+                </div>
+                <div className="w-full bg-primary-200 rounded-full h-2">
+                  <motion.div
+                    className="bg-primary-600 h-2 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${bulkUploadProgress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Start bulk upload button */}
+            {!isBulkUploading && (
+              <div className="flex justify-end space-x-3 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearPendingFiles}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleStartBulkUpload}
+                  disabled={!selectedFolder || pendingFiles.length === 0}
+                >
+                  Start Bulk Upload ({pendingFiles.length} files)
+                </Button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

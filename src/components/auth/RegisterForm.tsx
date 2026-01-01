@@ -313,10 +313,10 @@ export default function RegisterForm() {
           )}
 
           {/* FORM COMPLETION ASSISTANT */}
-          <div className="p-4 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-xl text-sm space-y-2">
+          <div className="p-4 bg-gradient-to-r from-brand-cyan-50 to-brand-navy-50 border border-brand-cyan-200 rounded-xl text-sm space-y-2">
             <div className="flex items-center space-x-2 mb-3">
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
-              <p className="font-semibold text-primary-800">✨ Smart Form Assistant</p>
+              <div className="w-2 h-2 bg-brand-cyan-500 rounded-full animate-pulse"></div>
+              <p className="font-semibold text-brand-navy-700">Smart Form Assistant</p>
             </div>
             
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">

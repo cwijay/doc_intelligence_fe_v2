@@ -14,6 +14,10 @@ interface ModalProps {
   className?: string;
   /** Whether to show the close button (default: true) */
   showCloseButton?: boolean;
+  /** Custom width in pixels (overrides size prop) */
+  customWidth?: number;
+  /** Custom height in pixels (overrides max-height from className) */
+  customHeight?: number;
 }
 
 export default function Modal({
@@ -23,7 +27,9 @@ export default function Modal({
   children,
   size = 'md',
   className,
-  showCloseButton = true
+  showCloseButton = true,
+  customWidth,
+  customHeight,
 }: ModalProps) {
   const sizeClasses = {
     sm: 'max-w-md',
@@ -68,9 +74,14 @@ export default function Modal({
                   'bg-gradient-to-br from-white to-[#fafafa] dark:from-brand-navy-600 dark:to-brand-navy-700',
                   'shadow-strong dark:shadow-dark-strong',
                   'border border-secondary-200/50 dark:border-secondary-700/50',
-                  sizeClasses[size],
+                  // Only apply size class if no custom width
+                  !customWidth && sizeClasses[size],
                   className
                 )}
+                style={{
+                  ...(customWidth && { width: customWidth, maxWidth: customWidth }),
+                  ...(customHeight && { height: customHeight, maxHeight: customHeight }),
+                }}
               >
                 {title && (
                   <div className="flex items-center justify-between mb-6">

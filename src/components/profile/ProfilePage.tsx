@@ -146,7 +146,7 @@ export default function ProfilePage() {
               <CardContent className="space-y-6">
                 {/* Profile Picture Placeholder */}
                 <div className="flex items-center space-x-4">
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center">
+                  <div className="w-20 h-20 bg-gradient-to-br from-brand-navy-500 via-brand-cyan-400 to-brand-coral-500 rounded-full flex items-center justify-center">
                     <span className="text-2xl font-bold text-white">
                       {currentUser.full_name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>

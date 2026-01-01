@@ -21,7 +21,7 @@ import Button from '@/components/ui/Button';
 import { Folder, Document } from '@/types/api';
 import { formatDistanceToNow } from 'date-fns';
 import { formatFileSize, getFileTypeIcon } from '@/lib/file-utils';
-import { useFolderDocuments } from '@/hooks/useFolders';
+import { useDocuments } from '@/hooks/useAllDocuments';
 import { useAuth } from '@/hooks/useAuth';
 
 interface FolderTreeItemProps {
@@ -45,9 +45,8 @@ function FolderTreeItem({
   const organizationId = user?.org_id || '';
 
   // Fetch documents for this folder when expanded
-  const { data: documentsData, isLoading: documentsLoading, error: documentsError } = useFolderDocuments(
+  const { data: documentsData, isLoading: documentsLoading, error: documentsError } = useDocuments(
     organizationId,
-    folder.id,
     folder.name,
     isExpanded && !!organizationId
   );

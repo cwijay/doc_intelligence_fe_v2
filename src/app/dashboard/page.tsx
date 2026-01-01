@@ -21,6 +21,8 @@ import { useRecentActivity } from '@/hooks/useRecentActivity';
 import { formatFileSize } from '@/lib/file-utils';
 import { Document } from '@/types/api';
 import DocumentContentModal from '@/components/documents/DocumentContentModal';
+import { useCapabilitiesModal } from '@/hooks/useCapabilitiesModal';
+import { CapabilitiesModal } from '@/components/ui/CapabilitiesModal';
 
 export default function Dashboard() {
   return (
@@ -35,6 +37,7 @@ function DashboardContent() {
   const { user } = useAuth();
   const organizationId = user?.org_id || '';
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const capabilitiesModal = useCapabilitiesModal();
 
   // Fetch document stats for document count
   const { data: documentStats, isLoading: statsLoading, error: statsError } = useDocumentStats(
@@ -275,22 +278,23 @@ function DashboardContent() {
               </CardContent>
             </Card>
 
-            <Card variant="glass" className="bg-gradient-to-br from-primary-500 to-primary-600 text-white border-0">
+            <Card variant="glass" className="bg-gradient-to-br from-brand-navy-500 via-brand-cyan-400 to-brand-coral-500 text-white border-0">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-3 mb-4">
                   <SparklesIcon className="w-6 h-6 text-white/90" />
-                  <h3 className="text-lg font-poppins font-semibold">AI-Powered Insights</h3>
+                  <h3 className="text-lg font-poppins font-semibold">Transform Your Documents</h3>
                 </div>
                 <p className="text-white/90 text-sm mb-4">
-                  Get intelligent document analysis and automated data extraction powered by advanced AI.
+                  Unlock AI-powered summaries, FAQs, smart search, and conversational RAG - all powered by Google Gemini and enterprise-grade security.
                 </p>
-                <Button 
-                  variant="secondary" 
+                <Button
+                  variant="secondary"
                   size="sm"
                   icon={<ArrowRightIcon className="w-4 h-4" />}
                   iconPosition="right"
+                  onClick={capabilitiesModal.open}
                 >
-                  Learn More
+                  Explore Features
                 </Button>
               </CardContent>
             </Card>
@@ -303,6 +307,12 @@ function DashboardContent() {
         document={selectedDocument}
         isOpen={!!selectedDocument}
         onClose={() => setSelectedDocument(null)}
+      />
+
+      {/* Capabilities Modal */}
+      <CapabilitiesModal
+        isOpen={capabilitiesModal.isOpen}
+        onClose={capabilitiesModal.close}
       />
     </div>
   );

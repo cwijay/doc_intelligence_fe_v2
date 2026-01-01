@@ -10,6 +10,12 @@
 export const FILE_EXTENSIONS = {
   /** Extension for parsed document files */
   PARSED: '.md',
+  /** Extension for summary files */
+  SUMMARY: '.md',
+  /** Extension for FAQ files */
+  FAQ: '.json',
+  /** Extension for question files */
+  QUESTIONS: '.json',
   /** Supported Excel file extensions */
   EXCEL: ['.xlsx', '.xls', '.csv'] as const,
   /** Supported image extensions */
@@ -35,10 +41,16 @@ export const MIME_TYPES = {
 // =============================================================================
 
 export const STORAGE_PATHS = {
-  /** Folder name for parsed documents */
-  PARSED_FOLDER: 'parsed',
   /** Folder name for original documents */
   ORIGINAL_FOLDER: 'original',
+  /** Folder name for parsed documents */
+  PARSED_FOLDER: 'parsed',
+  /** Folder name for document summaries */
+  SUMMARY_FOLDER: 'summary',
+  /** Folder name for generated FAQs (singular) */
+  FAQ_FOLDER: 'faq',
+  /** Folder name for generated questions */
+  QUESTIONS_FOLDER: 'questions',
   /** GCS path prefix */
   GCS_PREFIX: 'gs://',
   /** Default GCS bucket name */
@@ -231,8 +243,10 @@ export const LAYOUT = {
 // =============================================================================
 
 export const HEADERS = {
-  /** Organization ID header name */
+  /** Organization ID header name (used by Main API - expects UUID) */
   ORG_ID: 'X-Organization-ID',
+  /** Organization Name header name (used by AI API - expects org name string) */
+  ORG_NAME: 'X-Organization-Name',
   /** Authorization scheme */
   AUTH_SCHEME: 'Bearer',
 } as const;

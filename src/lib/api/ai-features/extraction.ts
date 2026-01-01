@@ -104,6 +104,7 @@ export const extractionApi = {
     templateName: string,
     documentType: string,
     selectedFields: FieldSelection[],
+    folderName: string,
     saveTemplate: boolean = true,
     sessionId?: string
   ): Promise<GenerateSchemaResponse> => {
@@ -113,6 +114,9 @@ export const extractionApi = {
     if (!documentType || documentType.trim() === '') {
       throw new Error('document_type is required');
     }
+    if (!folderName || folderName.trim() === '') {
+      throw new Error('folder_name is required');
+    }
     if (!selectedFields || selectedFields.length === 0) {
       throw new Error('At least one field must be selected');
     }
@@ -120,6 +124,7 @@ export const extractionApi = {
     try {
       logExtractionStart('generateSchema', templateName, {
         documentType,
+        folderName,
         fieldCount: selectedFields.length,
         saveTemplate,
       });
@@ -127,6 +132,7 @@ export const extractionApi = {
       const requestData: GenerateSchemaRequest = {
         template_name: templateName,
         document_type: documentType,
+        folder_name: folderName,
         selected_fields: selectedFields,
         save_template: saveTemplate,
         ...(sessionId && { session_id: sessionId }),
@@ -259,7 +265,9 @@ export const extractionApi = {
     extractionJobId: string,
     documentId: string,
     extractedData: Record<string, unknown>,
-    templateId?: string
+    templateId?: string,
+    folderName?: string,
+    sourceFilePath?: string
   ): Promise<SaveExtractedDataResponse> => {
     if (!extractionJobId || extractionJobId.trim() === '') {
       throw new Error('extraction_job_id is required');
@@ -269,13 +277,15 @@ export const extractionApi = {
     }
 
     try {
-      logExtractionStart('saveExtractedData', documentId, { extractionJobId });
+      logExtractionStart('saveExtractedData', documentId, { extractionJobId, folderName });
 
       const requestData: SaveExtractedDataRequest = {
         extraction_job_id: extractionJobId,
         document_id: documentId,
         extracted_data: extractedData,
         ...(templateId && { template_id: templateId }),
+        ...(folderName && { folder_name: folderName }),
+        ...(sourceFilePath && { source_file_path: sourceFilePath }),
       };
 
       const response: AxiosResponse<SaveExtractedDataResponse> = await aiApi.post(

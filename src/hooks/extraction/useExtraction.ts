@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { Document } from '@/types/api';
+import { Document, DocumentParseResponse } from '@/types/api';
 import { extractionApi } from '@/lib/api/ai-features';
 import { useAuth } from '@/hooks/useAuth';
 import { resolveFolderName } from '@/hooks/ai/utils';
@@ -21,7 +21,7 @@ import {
 
 export interface ExtractionActions {
   /** Start extraction workflow for a document */
-  startExtraction: (document: Document, documentTypeHint?: string) => void;
+  startExtraction: (document: Document, parseData?: DocumentParseResponse, documentTypeHint?: string) => void;
   /** Analyze document to discover fields */
   analyzeFields: () => Promise<void>;
   /** Toggle field selection */
@@ -63,6 +63,8 @@ export interface UseExtractionReturn extends ExtractionState, ExtractionActions 
   sessionId: string | null;
   /** Token usage from extraction */
   tokenUsage: TokenUsage | null;
+  /** Stored parse data for reopening parse modal after extraction */
+  storedParseData: DocumentParseResponse | null;
 }
 
 // =============================================================================
@@ -114,6 +116,9 @@ export function useExtraction(): UseExtractionReturn {
   // Session
   const [sessionId, setSessionId] = useState<string | null>(null);
 
+  // Stored parse data for reopening parse modal after extraction
+  const [storedParseData, setStoredParseData] = useState<DocumentParseResponse | null>(null);
+
   // Document type hint for analysis
   const [documentTypeHint, setDocumentTypeHint] = useState<string | undefined>();
 
@@ -142,12 +147,14 @@ export function useExtraction(): UseExtractionReturn {
     setExtractionJobId(null);
     setTokenUsage(null);
     setSessionId(null);
+    setStoredParseData(null);
     setDocumentTypeHint(undefined);
   }, []);
 
-  const startExtraction = useCallback((document: Document, typeHint?: string) => {
+  const startExtraction = useCallback((document: Document, parseData?: DocumentParseResponse, typeHint?: string) => {
     resetState();
     setSelectedDocument(document);
+    setStoredParseData(parseData || null);
     setDocumentTypeHint(typeHint);
     setIsModalOpen(true);
   }, [resetState]);
@@ -313,6 +320,11 @@ export function useExtraction(): UseExtractionReturn {
   // =============================================================================
 
   const generateSchema = useCallback(async (templateName: string, saveTemplate: boolean = true) => {
+    if (!selectedDocument || !user?.org_id) {
+      toast.error('Document and user information required');
+      return;
+    }
+
     if (selectedFields.length === 0) {
       toast.error('Please select at least one field');
       return;
@@ -328,10 +340,14 @@ export function useExtraction(): UseExtractionReturn {
       setError(null);
       toast.loading('Generating extraction schema...', { id: 'generate-schema' });
 
+      // Resolve folder name for schema path construction
+      const folderName = await resolveFolderName(selectedDocument, user.org_id);
+
       const response = await extractionApi.generateSchema(
         templateName,
         documentType,
         selectedFields,
+        folderName,
         saveTemplate,
         sessionId || undefined
       );
@@ -367,7 +383,7 @@ export function useExtraction(): UseExtractionReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedFields, documentType, sessionId]);
+  }, [selectedDocument, user, selectedFields, documentType, sessionId]);
 
   // =============================================================================
   // Data Extraction
@@ -429,7 +445,7 @@ export function useExtraction(): UseExtractionReturn {
   // =============================================================================
 
   const saveExtractedData = useCallback(async () => {
-    if (!extractedData || !extractionJobId || !selectedDocument) {
+    if (!extractedData || !extractionJobId || !selectedDocument || !user?.org_id || !user?.org_name) {
       toast.error('No extracted data to save');
       return;
     }
@@ -438,11 +454,19 @@ export function useExtraction(): UseExtractionReturn {
       setIsLoading(true);
       toast.loading('Saving extracted data...', { id: 'save-data' });
 
+      // Resolve folder name (same as other operations)
+      const folderName = await resolveFolderName(selectedDocument, user.org_id);
+
+      // Construct source file path for backend path derivation
+      const sourceFilePath = `${user.org_name}/parsed/${folderName}/${selectedDocument.name}`;
+
       const response = await extractionApi.saveExtractedData(
         extractionJobId,
         selectedDocument.id,
         extractedData,
-        selectedTemplate?.name
+        selectedTemplate?.name,
+        folderName,
+        sourceFilePath
       );
 
       if (!response.success) {
@@ -456,7 +480,7 @@ export function useExtraction(): UseExtractionReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [extractedData, extractionJobId, selectedDocument, selectedTemplate]);
+  }, [extractedData, extractionJobId, selectedDocument, selectedTemplate, user]);
 
   const exportToExcel = useCallback(async () => {
     if (!extractionJobId) {
@@ -514,6 +538,7 @@ export function useExtraction(): UseExtractionReturn {
     sessionId,
     tokenUsage,
     isModalOpen,
+    storedParseData,
 
     // Actions
     startExtraction,
@@ -549,6 +574,7 @@ export function useExtraction(): UseExtractionReturn {
     sessionId,
     tokenUsage,
     isModalOpen,
+    storedParseData,
     startExtraction,
     analyzeFields,
     toggleFieldSelection,

@@ -3,16 +3,21 @@
  * Reduces duplication while preserving type safety
  */
 
-import { validateParsedFilePath } from '../utils/path-utils';
+import { constructParsedFilePath } from '../utils/path-utils';
 
 /**
  * Validate document inputs for AI generation
  */
-export function validateAIInputs(documentName: string, parsedFilePath: string): void {
+export function validateAIInputs(documentName: string, orgName: string, folderName: string): void {
   if (!documentName || documentName.trim() === '') {
     throw new Error('document_name is required and cannot be empty');
   }
-  validateParsedFilePath(parsedFilePath);
+  if (!orgName || orgName.trim() === '') {
+    throw new Error('org_name is required and cannot be empty');
+  }
+  if (!folderName || folderName.trim() === '') {
+    throw new Error('folder_name is required and cannot be empty');
+  }
 }
 
 /**
@@ -29,13 +34,15 @@ export function logGenerationStart(
   emoji: string,
   featureName: string,
   documentName: string,
-  parsedFilePath: string,
+  orgName: string,
+  folderName: string,
   quantity: number,
   force: boolean
 ): void {
   console.log(`${emoji} Generating ${featureName} via AI API:`, {
     documentName,
-    parsedFilePath,
+    orgName,
+    folderName,
     quantity,
     force
   });
@@ -63,13 +70,18 @@ export function logGenerationError(featureName: string, error: unknown): void {
 
 /**
  * Build base request object for AI features
+ * Constructs parsed_file_path from org/folder/document components
  */
 export function buildBaseRequest(
   documentName: string,
-  parsedFilePath: string,
+  orgName: string,
+  folderName: string,
   sessionId?: string,
   force?: boolean
 ): Record<string, unknown> {
+  // Construct parsed_file_path like extraction API does
+  const parsedFilePath = constructParsedFilePath(orgName, folderName, documentName);
+
   return {
     document_name: documentName,
     parsed_file_path: parsedFilePath,

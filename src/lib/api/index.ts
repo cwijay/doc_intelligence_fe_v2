@@ -19,6 +19,7 @@ import { usageApi } from './usage';
 import { summaryApi } from './ai-features/summary';
 import { faqApi } from './ai-features/faq';
 import { questionsApi } from './ai-features/questions';
+import { bulkApi } from './bulk';
 
 // Export individual API modules
 export { authApi };
@@ -27,6 +28,7 @@ export { usersApi };
 export { foldersApi };
 export { healthApi };
 export { usageApi };
+export { bulkApi };
 
 // Export AI features individually
 export { summaryApi, faqApi, questionsApi };
@@ -52,3 +54,15 @@ export {
 } from './utils/diagnostics';
 export { withBackendFallback } from './fallback';
 export { adaptIngestParseResponse, isConnectionError } from './utils/parse-adapter';
+
+// Export bulk API types
+export type {
+  BulkUploadOptions,
+  BulkUploadResult,
+  BulkUploadResponse,
+  BulkJobInfo,
+  BulkJobStatusResponse,
+  DocumentItemInfo,
+  UploadedFileInfo,
+  FailedFileInfo,
+} from './bulk';

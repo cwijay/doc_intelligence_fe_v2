@@ -7,7 +7,6 @@ import {
   AIQuestionsResponse,
   DifficultyLevel,
 } from '@/types/api';
-import { constructParsedFilePath } from '../utils/path-utils';
 import { API_ENDPOINTS, AI_LIMITS } from '@/lib/constants';
 import {
   validateAIInputs,
@@ -24,27 +23,48 @@ export const questionsApi = {
    */
   generateQuestions: async (
     documentName: string,
-    parsedFilePath: string,
+    orgName: string,
+    folderName: string,
     numQuestions: number = AI_LIMITS.QUESTIONS.DEFAULT,
     sessionId?: string,
     force: boolean = false
   ): Promise<AIQuestionsResponse> => {
-    validateAIInputs(documentName, parsedFilePath);
+    validateAIInputs(documentName, orgName, folderName);
 
     const validNumQuestions = clampQuantity(numQuestions, AI_LIMITS.QUESTIONS.MIN, AI_LIMITS.QUESTIONS.MAX);
 
     try {
-      logGenerationStart('📋', 'questions', documentName, parsedFilePath, validNumQuestions, force);
+      logGenerationStart('📋', 'questions', documentName, orgName, folderName, validNumQuestions, force);
 
       const requestData: AIQuestionsRequest = {
-        ...buildBaseRequest(documentName, parsedFilePath, sessionId, force),
+        ...buildBaseRequest(documentName, orgName, folderName, sessionId, force),
         num_questions: validNumQuestions,
       } as AIQuestionsRequest;
+
+      // Debug: Log the request being sent
+      console.log('📋 Questions Request being sent:', {
+        endpoint: API_ENDPOINTS.QUESTIONS,
+        requestData,
+        orgName,
+        folderName,
+        documentName
+      });
 
       const response: AxiosResponse<AIQuestionsResponse> = await aiApi.post(
         API_ENDPOINTS.QUESTIONS,
         requestData
       );
+
+      // Debug: Log the raw API response to diagnose issues
+      console.log('📋 Raw API Response from /questions:', {
+        status: response.status,
+        data: response.data,
+        hasSuccessField: 'success' in response.data,
+        successValue: response.data.success,
+        hasQuestionsField: 'questions' in response.data,
+        questionsCount: response.data.questions?.length,
+        errorField: response.data.error,
+      });
 
       logGenerationSuccess(documentName, {
         count: response.data.count,
@@ -104,18 +124,47 @@ export const questionsApi = {
     sessionId?: string,
     force: boolean = false
   ): Promise<DocumentQuestions> => {
-    const parsedFilePath = constructParsedFilePath(orgName, folderName, document.name);
-
     const response = await questionsApi.generateQuestions(
       document.name,
-      parsedFilePath,
+      orgName,
+      folderName,
       numQuestions,
       sessionId,
       force
     );
 
-    if (!response.success) {
-      throw new Error(response.error || 'Failed to generate questions');
+    // Debug: Log response for troubleshooting
+    console.log('📋 Questions generateAndConvert - checking response:', {
+      success: response.success,
+      hasQuestions: !!response.questions,
+      questionsLength: response.questions?.length,
+      error: response.error,
+      fullResponse: response
+    });
+
+    // Check for explicit error first
+    if (response.error) {
+      // Provide more helpful error messages for common issues
+      const errorMsg = response.error;
+      if (errorMsg.toLowerCase().includes('not found') || errorMsg.toLowerCase().includes('does not exist')) {
+        throw new Error(`Document not found. Please ensure the document has been parsed before generating questions.`);
+      }
+      if (errorMsg.toLowerCase().includes('failed to generate')) {
+        throw new Error(`${errorMsg}. This may happen if the document hasn't been parsed yet. Please parse the document first.`);
+      }
+      throw new Error(errorMsg);
+    }
+
+    // Consider successful if we have questions data, even if success field is missing/false
+    // Backend may not always set success=true explicitly
+    const hasQuestionsData = response.questions && response.questions.length > 0;
+    if (!response.success && !hasQuestionsData) {
+      throw new Error('Failed to generate questions: No questions data received');
+    }
+
+    // Warn if success is false but we have data
+    if (!response.success && hasQuestionsData) {
+      console.warn('⚠️ Questions response has success=false but contains questions data, proceeding anyway');
     }
 
     return questionsApi.convertToDocumentQuestions(response, document.id);

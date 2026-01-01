@@ -72,5 +72,7 @@ export const normalizeDocument = (doc: any): Document => {
     folder_id: doc.folder_id || undefined,
     processed_at: doc.processed_at || undefined,
     created_by: doc.created_by || undefined,
+    // Preserve storage_path for folder filtering in useFolders.ts
+    storage_path: doc.storage_path || doc.path || doc.gcs_path || undefined,
   };
 };

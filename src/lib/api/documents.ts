@@ -46,7 +46,7 @@ export const documentsApi = {
 
     try {
       const response: AxiosResponse<any> = await api.get(`/documents`, {
-        params: filters,
+        params: { org_id: organizationId, ...filters },
       });
 
       // Map backend response to frontend expected structure
@@ -180,7 +180,7 @@ export const documentsApi = {
 
     try {
       const response: AxiosResponse<any> = await api.get('/documents', {
-        params: { folder_name: folderName },
+        params: { org_id: currentUser.org_id, folder_path: folderName },
       });
 
       if (response.data && Array.isArray(response.data.documents)) {

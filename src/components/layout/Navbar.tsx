@@ -16,12 +16,15 @@ import {
   ChevronDownIcon,
   SunIcon,
   MoonIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import Logo from '@/components/ui/Logo';
 import { clsx } from 'clsx';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useCapabilitiesModal } from '@/hooks/useCapabilitiesModal';
+import { CapabilitiesModal } from '@/components/ui/CapabilitiesModal';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon },
@@ -35,6 +38,7 @@ export default function Navbar() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { user, logout, isAuthenticated } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
+  const capabilitiesModal = useCapabilitiesModal();
 
   return (
     <nav className={clsx(
@@ -54,6 +58,18 @@ export default function Navbar() {
               {navigation.map((item) => (
                 <NavItem key={item.name} item={item} />
               ))}
+              {/* Features Button */}
+              <button
+                onClick={capabilitiesModal.open}
+                className={clsx(
+                  'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group',
+                  'text-primary-600 dark:text-primary-400',
+                  'hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                )}
+              >
+                <SparklesIcon className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200" />
+                Features
+              </button>
             </div>
           </div>
 
@@ -197,6 +213,21 @@ export default function Navbar() {
                 <MobileNavItem key={item.name} item={item} onClick={() => setIsOpen(false)} />
               ))}
 
+              {/* Mobile Features Button */}
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  capabilitiesModal.open();
+                }}
+                className={clsx(
+                  'flex items-center w-full px-3 py-2 rounded-lg text-base font-medium transition-all duration-200',
+                  'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                )}
+              >
+                <SparklesIcon className="w-5 h-5 mr-3" />
+                Features
+              </button>
+
               {/* Mobile Theme Toggle */}
               <button
                 onClick={toggleTheme}
@@ -279,6 +310,12 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Capabilities Modal */}
+      <CapabilitiesModal
+        isOpen={capabilitiesModal.isOpen}
+        onClose={capabilitiesModal.close}
+      />
     </nav>
   );
 }

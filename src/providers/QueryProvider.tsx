@@ -10,7 +10,7 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 0, // Always refetch - disable query caching
+            staleTime: 5 * 60 * 1000, // 5 minutes - allow individual hooks to cache data
             gcTime: 60 * 1000, // 1 minute garbage collection
             retry: (failureCount, error: any) => {
               // Don't retry on 404s

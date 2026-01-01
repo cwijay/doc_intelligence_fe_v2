@@ -60,6 +60,7 @@ export interface AnalyzeFieldsResponse {
 export interface GenerateSchemaRequest {
   template_name: string;
   document_type: string;
+  folder_name: string;
   selected_fields: FieldSelection[];
   save_template?: boolean;
   session_id?: string;
@@ -145,6 +146,8 @@ export interface SaveExtractedDataRequest {
   document_id: string;
   extracted_data: Record<string, any>;
   template_id?: string;
+  folder_name?: string;
+  source_file_path?: string;
 }
 
 export interface SaveExtractedDataResponse {

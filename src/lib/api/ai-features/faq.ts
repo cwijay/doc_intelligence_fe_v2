@@ -6,7 +6,6 @@ import {
   AIFAQsRequest,
   AIFAQsResponse,
 } from '@/types/api';
-import { constructParsedFilePath } from '../utils/path-utils';
 import { API_ENDPOINTS, AI_LIMITS } from '@/lib/constants';
 import {
   validateAIInputs,
@@ -23,27 +22,48 @@ export const faqApi = {
    */
   generateFAQs: async (
     documentName: string,
-    parsedFilePath: string,
+    orgName: string,
+    folderName: string,
     numFaqs: number = AI_LIMITS.FAQ.DEFAULT,
     sessionId?: string,
     force: boolean = false
   ): Promise<AIFAQsResponse> => {
-    validateAIInputs(documentName, parsedFilePath);
+    validateAIInputs(documentName, orgName, folderName);
 
     const validNumFaqs = clampQuantity(numFaqs, AI_LIMITS.FAQ.MIN, AI_LIMITS.FAQ.MAX);
 
     try {
-      logGenerationStart('❓', 'FAQs', documentName, parsedFilePath, validNumFaqs, force);
+      logGenerationStart('❓', 'FAQs', documentName, orgName, folderName, validNumFaqs, force);
 
       const requestData: AIFAQsRequest = {
-        ...buildBaseRequest(documentName, parsedFilePath, sessionId, force),
+        ...buildBaseRequest(documentName, orgName, folderName, sessionId, force),
         num_faqs: validNumFaqs,
       } as AIFAQsRequest;
+
+      // Debug: Log the request being sent
+      console.log('❓ FAQ Request being sent:', {
+        endpoint: API_ENDPOINTS.FAQS,
+        requestData,
+        orgName,
+        folderName,
+        documentName
+      });
 
       const response: AxiosResponse<AIFAQsResponse> = await aiApi.post(
         API_ENDPOINTS.FAQS,
         requestData
       );
+
+      // Debug: Log the raw API response to diagnose issues
+      console.log('❓ Raw API Response from /faqs:', {
+        status: response.status,
+        data: response.data,
+        hasSuccessField: 'success' in response.data,
+        successValue: response.data.success,
+        hasFaqsField: 'faqs' in response.data,
+        faqsCount: response.data.faqs?.length,
+        errorField: response.data.error,
+      });
 
       logGenerationSuccess(documentName, {
         count: response.data.count,
@@ -98,18 +118,47 @@ export const faqApi = {
     sessionId?: string,
     force: boolean = false
   ): Promise<DocumentFAQ> => {
-    const parsedFilePath = constructParsedFilePath(orgName, folderName, document.name);
-
     const response = await faqApi.generateFAQs(
       document.name,
-      parsedFilePath,
+      orgName,
+      folderName,
       numFaqs,
       sessionId,
       force
     );
 
-    if (!response.success) {
-      throw new Error(response.error || 'Failed to generate FAQs');
+    // Debug: Log response for troubleshooting
+    console.log('❓ FAQ generateAndConvert - checking response:', {
+      success: response.success,
+      hasFaqs: !!response.faqs,
+      faqsLength: response.faqs?.length,
+      error: response.error,
+      fullResponse: response
+    });
+
+    // Check for explicit error first
+    if (response.error) {
+      // Provide more helpful error messages for common issues
+      const errorMsg = response.error;
+      if (errorMsg.toLowerCase().includes('not found') || errorMsg.toLowerCase().includes('does not exist')) {
+        throw new Error(`Document not found. Please ensure the document has been parsed before generating FAQs.`);
+      }
+      if (errorMsg.toLowerCase().includes('failed to generate')) {
+        throw new Error(`${errorMsg}. This may happen if the document hasn't been parsed yet. Please parse the document first.`);
+      }
+      throw new Error(errorMsg);
+    }
+
+    // Consider successful if we have FAQs data, even if success field is missing/false
+    // Backend may not always set success=true explicitly
+    const hasFaqsData = response.faqs && response.faqs.length > 0;
+    if (!response.success && !hasFaqsData) {
+      throw new Error('Failed to generate FAQs: No FAQ data received');
+    }
+
+    // Warn if success is false but we have data
+    if (!response.success && hasFaqsData) {
+      console.warn('⚠️ FAQ response has success=false but contains FAQ data, proceeding anyway');
     }
 
     return faqApi.convertToDocumentFAQ(response, document.id);

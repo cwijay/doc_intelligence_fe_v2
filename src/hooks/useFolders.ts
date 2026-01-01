@@ -3,15 +3,10 @@ import { foldersApi, documentsApi } from '@/lib/api/index';
 import { authService } from '@/lib/auth';
 import { normalizeDocument } from '@/lib/utils/normalizeDocument';
 import {
-  Folder,
   FolderCreateRequest,
   FolderUpdateRequest,
   FolderFilters,
-  FolderTree,
   FolderMoveRequest,
-  FolderStats,
-  DocumentList,
-  DocumentFilters,
 } from '@/types/api';
 
 const QUERY_KEYS = {
@@ -21,7 +16,6 @@ const QUERY_KEYS = {
   folderTree: (orgId: string) => ['folders', orgId, 'tree'],
   folderPath: (orgId: string, folderId: string) => ['folders', orgId, folderId, 'path'],
   folderStats: (orgId: string) => ['folders', orgId, 'stats'],
-  folderDocuments: (orgId: string, folderId: string) => ['folders', orgId, folderId, 'documents'],
 };
 
 export const useFolders = (orgId: string, filters?: FolderFilters, enabled = true) => {
@@ -69,7 +63,7 @@ export const useFolders = (orgId: string, filters?: FolderFilters, enabled = tru
       }
     },
     enabled: enabled && !!orgId && hasValidToken,
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 30 * 1000, // 30 seconds - prevents unnecessary refetches
   });
 };
 
@@ -78,7 +72,7 @@ export const useFolder = (orgId: string, folderId: string, enabled = true) => {
     queryKey: QUERY_KEYS.folder(orgId, folderId),
     queryFn: () => foldersApi.getById(orgId, folderId),
     enabled: enabled && !!orgId && !!folderId,
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 30 * 1000, // 30 seconds - prevents unnecessary refetches
   });
 };
 
@@ -167,7 +161,7 @@ export const useFolderTree = (orgId: string, enabled = true) => {
     queryKey: QUERY_KEYS.folderTree(orgId),
     queryFn: () => foldersApi.getTree(orgId),
     enabled: enabled && !!orgId,
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 30 * 1000, // 30 seconds - prevents unnecessary refetches
   });
 };
 
@@ -176,7 +170,7 @@ export const useFolderPath = (orgId: string, folderId: string, enabled = true) =
     queryKey: QUERY_KEYS.folderPath(orgId, folderId),
     queryFn: () => foldersApi.getPath(orgId, folderId),
     enabled: enabled && !!orgId && !!folderId,
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 30 * 1000, // 30 seconds - prevents unnecessary refetches
   });
 };
 
@@ -217,163 +211,8 @@ export const useMoveFolder = () => {
   });
 };
 
-export const useFolderDocuments = (orgId: string, folderId: string, folderName: string, enabled = true) => {
-  // Check if user is authenticated (has valid token)
-  const hasValidToken = !!authService.getAccessToken();
-
-  return useQuery({
-    queryKey: QUERY_KEYS.folderDocuments(orgId, folderId),
-    queryFn: async () => {
-      console.log('🔍 useFolderDocuments START:', { orgId, folderId, folderName });
-
-      // Double-check authentication before making request
-      const token = authService.getAccessToken();
-      if (!token) {
-        console.warn('⚠️ useFolderDocuments: No auth token available, returning empty list');
-        return { documents: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
-      }
-
-      // folderName is now passed directly to avoid HTTP caching issues
-      console.log('📁 Using folder name:', { folderId, folderName });
-      
-      // Get documents by folder name using Documents API
-      const documentsResult = await documentsApi.listByFolderName(folderName);
-      console.log('📄 Documents API raw result:', documentsResult);
-      console.log('📄 Documents API result details:', {
-        success: documentsResult.success,
-        hasData: !!documentsResult.data,
-        documentCount: documentsResult.data?.documents?.length || 0,
-        shouldFallback: documentsResult.shouldFallback,
-        error: documentsResult.error,
-        typeOfResult: typeof documentsResult,
-        isObject: documentsResult && typeof documentsResult === 'object'
-      });
-      
-      // Handle both wrapped and unwrapped responses
-      let documentsData = null;
-
-      if (documentsResult.success && documentsResult.data) {
-        // Properly wrapped response
-        console.log('✅ Using wrapped Documents API result');
-        documentsData = documentsResult.data;
-      } else if (documentsResult && 'documents' in documentsResult && Array.isArray((documentsResult as unknown as DocumentList).documents)) {
-        // Direct API response (unwrapped) - cast to handle type mismatch
-        console.log('✅ Using direct Documents API result (unwrapped)');
-        const directResult = documentsResult as unknown as DocumentList;
-        documentsData = {
-          documents: directResult.documents,
-          total: directResult.total || directResult.documents.length,
-          page: directResult.page || 1,
-          per_page: directResult.per_page || 20,
-          total_pages: directResult.total_pages || 1
-        };
-      }
-
-      if (documentsData) {
-        console.log('📄 Raw documents from API:', documentsData.documents);
-
-        // Normalize documents to handle field name mismatches
-        const normalizedDocuments = documentsData.documents.map(normalizeDocument);
-        console.log('📄 Normalized documents:', normalizedDocuments);
-
-        // Client-side filtering to ensure only documents in this folder are shown
-        // (defensive measure in case backend doesn't filter correctly)
-        const filteredDocuments = normalizedDocuments.filter((doc: any) => {
-          // Filter by folder_id if available
-          if (doc.folder_id && doc.folder_id === folderId) {
-            return true;
-          }
-          // Filter by folder_name if available
-          if (doc.folder_name && doc.folder_name.toLowerCase() === folderName.toLowerCase()) {
-            return true;
-          }
-          // Filter by storage_path containing folder name
-          if (doc.storage_path) {
-            const pathParts = doc.storage_path.split('/');
-            // Path format: org/original/folder_name/filename
-            if (pathParts.length >= 3 && pathParts[2].toLowerCase() === folderName.toLowerCase()) {
-              return true;
-            }
-          }
-          // Filter by gcs_path containing folder name
-          if (doc.gcs_path) {
-            const pathParts = doc.gcs_path.split('/');
-            if (pathParts.length >= 3 && pathParts[2].toLowerCase() === folderName.toLowerCase()) {
-              return true;
-            }
-          }
-          return false;
-        });
-
-        console.log('🔍 Filtered documents for folder:', {
-          folderName,
-          folderId,
-          beforeFilter: normalizedDocuments.length,
-          afterFilter: filteredDocuments.length
-        });
-
-        const result = {
-          ...documentsData,
-          documents: filteredDocuments,
-          total: filteredDocuments.length
-        };
-
-        console.log('🔍 useFolderDocuments RETURN:', {
-          total: result.total,
-          documentCount: result.documents.length,
-          documents: result.documents
-        });
-
-        return result;
-      } else if (documentsResult.shouldFallback) {
-        // Documents API failed - use GCP bucket approach as fallback
-        console.log('🔄 Documents API failed, using GCP bucket fallback');
-        const currentUser = authService.getUser();
-        if (!currentUser) {
-          throw new Error('No authenticated user found. Please login first.');
-        }
-
-        const orgName = currentUser.org_name;
-        const folderPath = `${orgName}/original/${folderName}`;
-        
-        const filters: DocumentFilters = { folder_path: folderPath };
-        const result = await documentsApi.list(orgId, filters);
-        
-        console.log('✅ GCP bucket fallback succeeded:', {
-          totalDocuments: result.total,
-          documentsReturned: result.documents.length,
-          folderName,
-          folderPath
-        });
-        
-        // Normalize documents to handle field name mismatches
-        const normalizedDocuments = result.documents.map(normalizeDocument);
-        
-        return {
-          ...result,
-          documents: normalizedDocuments
-        };
-      } else {
-        // If we reach here, neither the Documents API nor fallback worked
-        console.warn('⚠️ No documents found or API failed:', {
-          apiError: documentsResult.error,
-          documentsResult
-        });
-        
-        // Return empty result instead of throwing error
-        return {
-          documents: [],
-          total: 0,
-          page: 1,
-          per_page: 20,
-          total_pages: 0
-        };
-      }
-    },
-    enabled: enabled && !!orgId && !!folderId && hasValidToken,
-    staleTime: 0, // Always fetch fresh data
-  });
-};
+// useFolderDocuments has been removed - use useDocuments from useAllDocuments.ts instead
+// The unified useDocuments hook handles both all-documents and folder-filtered views
 
 export const useDocumentStats = (orgId: string, enabled = true) => {
   // Check if user is authenticated (has valid token)

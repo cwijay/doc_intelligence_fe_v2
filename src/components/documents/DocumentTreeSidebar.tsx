@@ -12,7 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import TreeNode, { TreeNodeBadge } from './TreeNode';
 import { Folder, Document, DocumentStatus } from '@/types/api';
-import { useFolderDocuments } from '@/hooks/useFolders';
+import { useDocuments } from '@/hooks/useAllDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { SidebarState } from '@/hooks/useSidebarState';
 
@@ -67,11 +67,10 @@ function FolderDocuments({
   const { user } = useAuth();
   const organizationId = user?.org_id || '';
 
-  const { data: documentsData, isLoading } = useFolderDocuments(
+  const { data: documentsData, isLoading } = useDocuments(
     organizationId,
-    folderId,
-    folderName,
-    !!organizationId && !!folderId && !!folderName
+    folderName,  // Pass folder name to filter by folder
+    !!organizationId && !!folderName
   );
 
   // Report document IDs to parent when loaded

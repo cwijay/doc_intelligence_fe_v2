@@ -29,8 +29,9 @@ sheetsApi.interceptors.request.use(
     }
 
     // Add organization header for multi-tenancy
-    if (user?.org_id) {
-      config.headers['X-Organization-ID'] = user.org_id;
+    // AI API expects org_name, not org_id UUID
+    if (user?.org_name) {
+      config.headers['X-Organization-ID'] = user.org_name;
     }
 
     console.log('📊 Sheets API Request:', {
@@ -38,7 +39,7 @@ sheetsApi.interceptors.request.use(
       method: config.method,
       baseURL: config.baseURL,
       hasToken: !!token,
-      orgId: user?.org_id || 'none'
+      orgName: user?.org_name || 'none'
     });
 
     return config;

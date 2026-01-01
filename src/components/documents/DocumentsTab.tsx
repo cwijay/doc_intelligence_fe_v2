@@ -23,8 +23,8 @@ import DocumentParseModal from '@/components/documents/DocumentParseModal';
 import { ExtractionModal } from '@/components/documents/extraction/ExtractionModal';
 import ExcelChatModal from '@/components/documents/ExcelChatModal';
 import RagChatModal from '@/components/documents/RagChatModal';
-import { useFolders, useFolderDocuments } from '@/hooks/useFolders';
-import { useAllDocuments } from '@/hooks/useAllDocuments';
+import { useFolders } from '@/hooks/useFolders';
+import { useDocuments } from '@/hooks/useAllDocuments';
 import { useDocumentActions } from '@/hooks/useDocumentActions';
 import { useDocumentAI } from '@/hooks/ai';
 import { useExcelChat } from '@/hooks/useExcelChat';
@@ -93,33 +93,18 @@ export default function DocumentsTab({
     return folder?.name || '';
   }, [selectedViewFolder, foldersData?.folders]);
 
-  // Fetch all documents (when no folder selected)
+  // Single unified hook - UI driven:
+  // - Click folder → pass folderName → GET /documents?folder_name=xxx
+  // - Click org/all → pass null → GET /documents
   const {
-    data: allDocumentsData,
-    isLoading: allDocumentsLoading,
-    error: allDocumentsError
-  } = useAllDocuments(
+    data: documentsData,
+    isLoading: documentsLoading,
+    error: documentsError
+  } = useDocuments(
     organizationId,
-    undefined, // No filters for all documents view
-    !!organizationId && !selectedViewFolder
+    selectedFolderName || null,  // Pass folder name if selected, otherwise null for all docs
+    !!organizationId
   );
-
-  // Fetch documents for selected folder
-  const {
-    data: folderDocumentsData,
-    isLoading: folderDocumentsLoading,
-    error: folderDocumentsError
-  } = useFolderDocuments(
-    organizationId,
-    selectedViewFolder || '',
-    selectedFolderName,
-    !!organizationId && !!selectedViewFolder && !!selectedFolderName
-  );
-
-  // Determine which data source to use
-  const documentsData = selectedViewFolder ? folderDocumentsData : allDocumentsData;
-  const documentsLoading = selectedViewFolder ? folderDocumentsLoading : allDocumentsLoading;
-  const documentsError = selectedViewFolder ? folderDocumentsError : allDocumentsError;
 
   // Enhanced debug logging for documents data
   console.group('📊 DocumentsTab Debug Information');
@@ -250,15 +235,16 @@ export default function DocumentsTab({
   // Effect to reopen parse modal after extraction
   useEffect(() => {
     if (reopenParseModalAfterExtraction && !extraction.isModalOpen) {
-      // Get the document from extraction state (preserved by completeExtraction)
+      // Get the document and stored parse data from extraction state (preserved by completeExtraction)
       const doc = extraction.selectedDocument;
-      if (doc && documentActions.parseData) {
-        // Reopen the parse modal
-        documentActions.openParseModal(doc, documentActions.parseData);
+      const storedData = extraction.storedParseData;
+      if (doc && storedData) {
+        // Reopen the parse modal with the stored parse data
+        documentActions.openParseModal(doc, storedData);
       }
       setReopenParseModalAfterExtraction(false);
     }
-  }, [reopenParseModalAfterExtraction, extraction.isModalOpen, extraction.selectedDocument, documentActions]);
+  }, [reopenParseModalAfterExtraction, extraction.isModalOpen, extraction.selectedDocument, extraction.storedParseData, documentActions]);
 
   // Handle bulk chat
   const handleBulkChat = useCallback(() => {
@@ -712,9 +698,9 @@ export default function DocumentsTab({
         document={documentActions.selectedDocumentForParse}
         parseData={documentActions.parseData}
         onSave={documentActions.handleSaveParsedContent}
-        onExtract={() => {
+        onExtract={(parseData) => {
           if (documentActions.selectedDocumentForParse) {
-            extraction.startExtraction(documentActions.selectedDocumentForParse);
+            extraction.startExtraction(documentActions.selectedDocumentForParse, parseData || undefined);
           }
         }}
       />

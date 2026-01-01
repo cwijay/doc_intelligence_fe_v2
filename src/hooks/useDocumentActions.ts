@@ -72,8 +72,8 @@ export function useDocumentActions(): UseDocumentActionsReturn {
       // Dismiss loading toast and show success
       toast.success(`Document "${document.name}" deleted successfully`, { id: loadingToast });
 
-      // Invalidate document-related queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      // Invalidate document-related queries to refresh the UI (scoped to org)
+      queryClient.invalidateQueries({ queryKey: ['documents', user?.org_id] });
       queryClient.invalidateQueries({ queryKey: ['document-stats'] });
 
       // Invalidate folder-specific document queries if document has folder_id
@@ -112,14 +112,31 @@ export function useDocumentActions(): UseDocumentActionsReturn {
         throw new Error('Organization name not available. Please ensure you are logged in.');
       }
 
-      // Get folder name if document has folder_id
-      let folderName: string | undefined;
-      if (document.folder_id && user?.org_id) {
-        try {
-          const folderResponse = await foldersApi.getById(user.org_id, document.folder_id);
-          folderName = folderResponse.name;
-        } catch (folderError) {
-          console.warn('⚠️ Could not resolve folder name, using default:', folderError);
+      // Get folder name - prioritize folder_name (from normalization) over folder_id lookup
+      let folderName: string | undefined = document.folder_name;
+
+      // If no folder_name, try to extract from storage_path
+      if (!folderName && document.storage_path) {
+        const pathParts = document.storage_path.split('/');
+        // Path format: org/original/folder/filename
+        if (pathParts.length >= 4) {
+          folderName = pathParts[pathParts.length - 2];
+        }
+      }
+
+      // Only use folder_id API lookup as last resort, and validate it's a UUID
+      if (!folderName && document.folder_id && user?.org_id) {
+        // Check if folder_id looks like a UUID (basic validation)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(document.folder_id)) {
+          try {
+            const folderResponse = await foldersApi.getById(user.org_id, document.folder_id);
+            folderName = folderResponse.name;
+          } catch (folderError) {
+            console.warn('⚠️ Could not resolve folder name from folder_id:', folderError);
+          }
+        } else {
+          console.warn('⚠️ folder_id is not a valid UUID, skipping API lookup:', document.folder_id);
         }
       }
 
@@ -151,8 +168,8 @@ export function useDocumentActions(): UseDocumentActionsReturn {
         return newSet;
       });
 
-      // Invalidate document queries to refresh UI with updated status
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      // Invalidate document queries to refresh UI with updated status (scoped to org)
+      queryClient.invalidateQueries({ queryKey: ['documents', user?.org_id] });
       queryClient.invalidateQueries({ queryKey: ['document-stats'] });
 
       // Invalidate folder-specific document queries if document has folder_id
@@ -369,11 +386,31 @@ export function useDocumentActions(): UseDocumentActionsReturn {
       const orgResponse = await organizationsApi.getById(user.org_id);
       const orgName = orgResponse.name;
 
-      // Get folder name if document has folder_id
-      let folderName: string | undefined;
-      if (selectedDocumentForParse.folder_id) {
-        const folderResponse = await foldersApi.getById(user.org_id, selectedDocumentForParse.folder_id);
-        folderName = folderResponse.name;
+      // Get folder name - prioritize folder_name (from normalization) over folder_id lookup
+      let folderName: string | undefined = selectedDocumentForParse.folder_name;
+
+      // If no folder_name, try to extract from storage_path
+      if (!folderName && selectedDocumentForParse.storage_path) {
+        const pathParts = selectedDocumentForParse.storage_path.split('/');
+        // Path format: org/original/folder/filename or org/parsed/folder/filename
+        if (pathParts.length >= 4) {
+          folderName = pathParts[pathParts.length - 2];
+        }
+      }
+
+      // Only use folder_id API lookup as last resort, and validate it's a UUID
+      if (!folderName && selectedDocumentForParse.folder_id && user?.org_id) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(selectedDocumentForParse.folder_id)) {
+          try {
+            const folderResponse = await foldersApi.getById(user.org_id, selectedDocumentForParse.folder_id);
+            folderName = folderResponse.name;
+          } catch (folderError) {
+            console.warn('⚠️ Could not resolve folder name from folder_id:', folderError);
+          }
+        } else {
+          console.warn('⚠️ folder_id is not a valid UUID, skipping API lookup:', selectedDocumentForParse.folder_id);
+        }
       }
 
       const cleanFolderName = folderName || 'default';

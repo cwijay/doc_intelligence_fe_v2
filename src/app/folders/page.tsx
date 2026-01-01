@@ -10,7 +10,8 @@ import CreateFolderModal from '@/components/folders/CreateFolderModal';
 import EditFolderModal from '@/components/folders/EditFolderModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DocumentList from '@/components/documents/DocumentList';
-import { useFolders, useDeleteFolder, useFolderDocuments } from '@/hooks/useFolders';
+import { useFolders, useDeleteFolder } from '@/hooks/useFolders';
+import { useDocuments } from '@/hooks/useAllDocuments';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { Folder } from '@/types/api';
@@ -42,10 +43,9 @@ function FoldersPageContent() {
     !!organizationId
   );
 
-  const { data: documentsData, isLoading: documentsLoading, error: documentsError } = useFolderDocuments(
+  const { data: documentsData, isLoading: documentsLoading, error: documentsError } = useDocuments(
     organizationId,
-    selectedFolder?.id || '',
-    selectedFolder?.name || '',
+    selectedFolder?.name || null,
     !!selectedFolder && !!organizationId
   );
   

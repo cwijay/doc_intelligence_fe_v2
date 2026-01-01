@@ -463,9 +463,11 @@ export interface DocumentQuestionsRetrievalResponse {
 export type DifficultyLevel = 'easy' | 'medium' | 'hard';
 
 // New Summarize Request (AI API)
+// Note: API now uses org_name + folder_name instead of parsed_file_path
 export interface AISummarizeRequest {
   document_name: string;
-  parsed_file_path: string;  // GCS path: "{org_name}/parsed/{folder_name}/{document_name}.md"
+  org_name: string;          // Organization name for GCS path
+  folder_name: string;       // Folder name within organization
   max_words?: number;        // 50-2000, default: 500
   session_id?: string;       // For conversation continuity
 }
@@ -474,6 +476,7 @@ export interface AISummarizeRequest {
 export interface AISummarizeResponse {
   success: boolean;
   summary?: string;
+  message?: string;  // Backend may return summary content in message field
   word_count: number;
   cached: boolean;
   processing_time_ms: number;
@@ -481,9 +484,11 @@ export interface AISummarizeResponse {
 }
 
 // New FAQs Request (AI API)
+// Note: API now uses org_name + folder_name instead of parsed_file_path
 export interface AIFAQsRequest {
   document_name: string;
-  parsed_file_path: string;  // GCS path: "{org_name}/parsed/{folder_name}/{document_name}.md"
+  org_name: string;          // Organization name for GCS path
+  folder_name: string;       // Folder name within organization
   num_faqs?: number;         // 1-50, default: 5
   session_id?: string;
 }
@@ -502,9 +507,11 @@ export interface AIFAQsResponse {
 }
 
 // New Questions Request (AI API)
+// Note: API now uses org_name + folder_name instead of parsed_file_path
 export interface AIQuestionsRequest {
   document_name: string;
-  parsed_file_path: string;  // GCS path: "{org_name}/parsed/{folder_name}/{document_name}.md"
+  org_name: string;          // Organization name for GCS path
+  folder_name: string;       // Folder name within organization
   num_questions?: number;    // 1-100, default: 10
   session_id?: string;
 }
