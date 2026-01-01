@@ -76,6 +76,8 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [currentDocuments, setCurrentDocuments] = useState<Document[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // Resolved folder name for semantic cache scoping
+  const [currentFolderName, setCurrentFolderName] = useState<string | null>(null);
 
   // Refs for retry
   const lastQueryRef = useRef<{ query: string; options?: EnhancedRAGQueryOptions } | null>(null);
@@ -90,6 +92,15 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
     setError(null);
     setMessages([]);
     setSessionId(null);
+
+    // Use folder_id directly as folder name for semantic cache scoping
+    // folder_id may contain either UUID or folder name - either works for cache
+    if (document.folder_id) {
+      setCurrentFolderName(document.folder_id);
+      console.log('📁 Using folder for cache:', document.folder_id);
+    } else {
+      setCurrentFolderName(null);
+    }
   }, []);
 
   const openMultiChat = useCallback((documents: Document[]) => {
@@ -100,12 +111,21 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
     setError(null);
     setMessages([]);
     setSessionId(null);
+
+    // Use folder_id directly for single document cache scoping
+    if (documents.length === 1 && documents[0].folder_id) {
+      setCurrentFolderName(documents[0].folder_id);
+      console.log('📁 Using folder for cache:', documents[0].folder_id);
+    } else {
+      setCurrentFolderName(null);
+    }
   }, []);
 
   const closeChat = useCallback(() => {
     console.log('⚡ Closing RAG chat');
     setIsOpen(false);
     setError(null);
+    setCurrentFolderName(null);
   }, []);
 
   const clearChat = useCallback(() => {
@@ -223,9 +243,20 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
     }
 
     const effectiveSearchMode = options?.searchMode || config.searchMode;
-    const effectiveFolderName = options?.folderName || config.folderFilter;
-    const effectiveFileFilter = options?.fileFilter || config.fileFilter;
     const effectiveMaxSources = options?.maxSources || config.maxSources;
+
+    // Auto-derive filters from currentDocuments when not explicitly set
+    // This ensures semantic cache is correctly scoped by document
+    const effectiveFileFilter = options?.fileFilter || config.fileFilter ||
+      (currentDocuments.length === 1 ? currentDocuments[0].name : null);
+    // Use currentFolderName (resolved when opening chat) as fallback for folder filter
+    const effectiveFolderName = options?.folderName || config.folderFilter || currentFolderName;
+
+    console.log('📤 Sending Gemini search with filters:', {
+      fileFilter: effectiveFileFilter,
+      folderFilter: effectiveFolderName,
+      currentDocuments: currentDocuments.map(d => d.name),
+    });
 
     addMessage({ type: 'user', content: query });
     setIsLoading(true);
@@ -288,7 +319,7 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
     } finally {
       setIsLoading(false);
     }
-  }, [user?.org_name, sessionId, addMessage]);
+  }, [user?.org_name, sessionId, addMessage, currentDocuments, currentFolderName]);
 
   const retryLastMessage = useCallback(async () => {
     if (!lastQueryRef.current) {
