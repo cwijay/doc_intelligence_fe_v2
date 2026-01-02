@@ -85,7 +85,12 @@ export default function FileUpload({
 
   const isBulkMode = mode === 'bulk';
 
+  console.log('🔄 FileUpload render - mode:', mode, 'isBulkMode:', isBulkMode);
+
+  // Simple onDrop handler - recreated when mode changes to ensure correct behavior
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+    console.log('📥 onDrop called - mode:', mode, 'isBulkMode:', isBulkMode, 'files:', acceptedFiles.length);
+
     // Check if folder is selected before proceeding
     if (!selectedFolder) {
       toast.error('Please select a folder before uploading documents');
@@ -101,7 +106,9 @@ export default function FileUpload({
     }
 
     // In bulk mode, collect files without uploading
+    console.log('📋 Checking bulk mode - isBulkMode:', isBulkMode, 'mode:', mode);
     if (isBulkMode) {
+      console.log('✅ BULK MODE ACTIVE - collecting files instead of uploading');
       // Check max files limit
       const totalFiles = pendingFiles.length + acceptedFiles.length;
       if (totalFiles > maxFiles) {
@@ -123,6 +130,7 @@ export default function FileUpload({
     }
 
     // Single mode - original behavior
+    console.log('📤 SINGLE MODE - uploading immediately');
     const newFiles: FileWithProgress[] = acceptedFiles.map(file => {
       // Ensure file has valid properties
       const validFile = {
@@ -148,7 +156,7 @@ export default function FileUpload({
     if (onUpload) {
       onUpload(acceptedFiles, selectedFolder || undefined);
     }
-  }, [onUpload, selectedFolder, isBulkMode, pendingFiles, maxFiles]);
+  }, [mode, isBulkMode, selectedFolder, onUpload, pendingFiles, maxFiles]); // Include mode and isBulkMode in deps
 
   const simulateUpload = (file: FileWithProgress) => {
     const interval = setInterval(() => {
@@ -185,6 +193,12 @@ export default function FileUpload({
 
   // Bulk mode: start bulk upload
   const handleStartBulkUpload = async () => {
+    console.log('🎯 Start Bulk Upload clicked:', {
+      pendingFilesCount: pendingFiles.length,
+      selectedFolder,
+      hasOnBulkUpload: !!onBulkUpload
+    });
+
     if (!onBulkUpload) {
       console.error('onBulkUpload callback not provided');
       return;
@@ -206,6 +220,12 @@ export default function FileUpload({
       toast.error('Selected folder not found');
       return;
     }
+
+    console.log('📤 Initiating bulk upload:', {
+      folderName: folder.name,
+      fileCount: pendingFiles.length,
+      fileNames: pendingFiles.map(f => f.name)
+    });
 
     try {
       await onBulkUpload(pendingFiles, folder.name);

@@ -11,7 +11,7 @@ import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { useBulkUpload, useCancelBulkJob, useRetryBulkJob } from '@/hooks/useBulkUpload';
 import { useAuth } from '@/hooks/useAuth';
 import { Folder } from '@/types/api';
-import { DocumentArrowUpIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { DocumentArrowUpIcon, ArrowLeftIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 
 interface DocumentUploadSectionProps {
   isVisible: boolean;
@@ -62,6 +62,8 @@ export default function DocumentUploadSection({
   const { cancelJob, isCancelling } = useCancelBulkJob();
   const { retryFailed, isRetrying } = useRetryBulkJob();
 
+  console.log('📦 DocumentUploadSection render:', { isVisible, isBulkMode, jobStatus, isBulkUploading });
+
   if (!isVisible) return null;
 
   const onUpload = (files: File[]) => {
@@ -72,10 +74,12 @@ export default function DocumentUploadSection({
   const onBulkUpload = async (files: File[], folderName: string) => {
     const orgName = user?.org_name;
     if (!orgName) {
-      console.error('Organization name not available');
-      return;
+      throw new Error('Organization name not available. Please refresh the page and try again.');
     }
-    await bulkUpload(folderName, orgName, files);
+    const result = await bulkUpload(folderName, orgName, files);
+    if (!result) {
+      throw new Error('Bulk upload failed');
+    }
   };
 
   // Handle cancel bulk job
@@ -141,7 +145,10 @@ export default function DocumentUploadSection({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsBulkMode(true)}
+                  onClick={() => {
+                    console.log('🔘 Bulk Upload button clicked, setting isBulkMode to true');
+                    setIsBulkMode(true);
+                  }}
                   className="flex items-center space-x-2"
                 >
                   <DocumentArrowUpIcon className="w-4 h-4" />
@@ -162,6 +169,27 @@ export default function DocumentUploadSection({
             </div>
           </CardHeader>
           <CardContent>
+            {/* Bulk mode instructions */}
+            {isBulkMode && !jobStatus && !isBulkUploading && (
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <InformationCircleIcon className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800 dark:text-blue-200">
+                    <p className="font-medium mb-2">Bulk Upload Workflow:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-blue-700 dark:text-blue-300">
+                      <li>Select a destination folder from the dropdown below</li>
+                      <li>Drag & drop or select multiple files (up to 10)</li>
+                      <li>Review the files in the list that appears</li>
+                      <li>Click <span className="font-semibold">"Start Bulk Upload"</span> to begin processing</li>
+                    </ol>
+                    <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                      All files will be uploaded and processed together with AI-powered analysis (summary, FAQs, questions).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <AnimatePresence mode="wait">
               {/* Show bulk upload progress if job is active */}
               {jobStatus ? (
@@ -189,6 +217,7 @@ export default function DocumentUploadSection({
                   exit={{ opacity: 0, y: -10 }}
                 >
                   <FileUpload
+                    key={`file-upload-${isBulkMode ? 'bulk' : 'single'}`}
                     onUpload={onUpload}
                     folders={folders}
                     selectedFolder={selectedUploadFolder}

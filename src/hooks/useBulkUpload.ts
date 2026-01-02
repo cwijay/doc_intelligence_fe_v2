@@ -21,7 +21,7 @@ export interface UseBulkUploadOptions {
   onComplete?: (job: BulkJobInfo) => void;
   /** Callback when job fails */
   onError?: (error: string) => void;
-  /** Polling interval in milliseconds (default: 2000ms) */
+  /** Polling interval in milliseconds (default: 5000ms) */
   pollInterval?: number;
 }
 
@@ -63,7 +63,7 @@ export interface UseBulkUploadReturn extends BulkUploadState {
 // =============================================================================
 
 export function useBulkUpload(options: UseBulkUploadOptions = {}): UseBulkUploadReturn {
-  const { onComplete, onError, pollInterval = 20000 } = options;
+  const { onComplete, onError, pollInterval = 5000 } = options;
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -190,6 +190,13 @@ export function useBulkUpload(options: UseBulkUploadOptions = {}): UseBulkUpload
     setJobStatus(null);
 
     try {
+      console.log('🚀 Calling bulk upload API:', {
+        folderName,
+        orgName,
+        fileCount: files.length,
+        fileNames: files.map(f => f.name)
+      });
+
       const result = await bulkApi.upload({
         folderName,
         orgName,
@@ -236,13 +243,18 @@ export function useBulkUpload(options: UseBulkUploadOptions = {}): UseBulkUpload
         toast.success(`Uploaded ${response.uploaded_files.length} files successfully!`);
       }
 
-      // Start polling if job was created and auto-started
-      if (response.job_id && response.status && response.status !== 'pending') {
+      // Start polling immediately when job is created (regardless of initial status)
+      // The polling mechanism handles all status transitions: pending → processing → completed
+      if (response.job_id) {
+        console.log('📬 Bulk upload API response:', {
+          success: true,
+          jobId: response.job_id,
+          status: response.status,
+          uploadedCount: response.uploaded_files.length,
+          failedCount: response.failed_files.length
+        });
         setJobId(response.job_id);
         startPolling(response.job_id);
-      } else if (response.job_id) {
-        // Job created but not started - just save the ID
-        setJobId(response.job_id);
       }
 
       // Invalidate document queries to show newly uploaded files
