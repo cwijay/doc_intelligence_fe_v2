@@ -29,6 +29,7 @@ Biz-To-Bricks provides intelligent document processing with AI-powered analysis,
 -   **GCS Bucket Integration**: Enterprise-grade storage with `biz-to-bricks-document-store`
 -   **Document Status Tracking**: Real-time processing status (pending → processing → completed/failed)
 -   **File Upload & Management**: Drag-and-drop interface with progress tracking and folder organization
+-   **Bulk Upload**: Upload up to 10 files at once with batch AI processing (summary, FAQs, questions generation)
 -   **Document Versioning**: Track changes and maintain document history
 
 ### 🔐 Authentication & Security
@@ -68,6 +69,7 @@ Biz-To-Bricks provides intelligent document processing with AI-powered analysis,
     -   Questions generation (`/api/v1/documents/questions`)
     -   RAG chat (`/api/v1/simple-rag`)
     -   Document ingestion (`/api/v1/ingest`)
+    -   Bulk upload & processing (`/api/v1/bulk/upload`, `/api/v1/bulk/jobs`)
     -   Excel chat
 
 ## 🏗️ Architecture
@@ -356,6 +358,51 @@ All AI endpoints use a `parsed_file_path` approach with format: `{org_name}/pars
 -   **Excel Chat**: Specialized AI chat for Excel documents
 -   **GCS Caching**: All AI responses cached in GCS with `force` parameter to bypass
 
+#### Bulk Upload & Processing (AI API - port 8001)
+
+Upload multiple files at once for batch AI processing:
+
+-   `POST /api/v1/bulk/upload` - Upload files and create processing job
+-   `GET /api/v1/bulk/jobs/{jobId}` - Get job status and document details
+-   `GET /api/v1/bulk/jobs` - List jobs with optional status filter
+-   `POST /api/v1/bulk/jobs/{jobId}/cancel` - Cancel a running job
+-   `POST /api/v1/bulk/jobs/{jobId}/retry` - Retry failed documents
+
+**Bulk Upload Workflow:**
+1. Click **"Bulk Upload"** button first (switches to bulk mode)
+2. Select destination folder from dropdown
+3. Drag & drop or select up to 10 files
+4. Click **"Start Bulk Upload"** to begin processing
+
+**Upload Request (FormData):**
+```
+folder_name: string
+org_name: string
+files: File[] (max 10)
+generate_summary: true
+generate_faqs: true
+generate_questions: true
+num_faqs: 10
+num_questions: 10
+summary_max_words: 500
+auto_start: true
+```
+
+**Job Status Response:**
+```json
+{
+  "success": true,
+  "job": {
+    "id": "job-uuid",
+    "status": "processing",
+    "total_documents": 5,
+    "completed_count": 3,
+    "failed_count": 0
+  },
+  "progress_percentage": 60
+}
+```
+
 #### Conversational RAG (AI API - port 8001)
 
 -   `POST /api/v1/documents/chat` - Conversational RAG with session memory
@@ -635,6 +682,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   `src/lib/api/ai-features/` - AI feature modules (summary.ts, faq.ts, questions.ts)
 -   `src/lib/api/ai-features/helpers.ts` - Shared AI feature utilities
 -   `src/lib/api/ingestion/` - Document ingestion and RAG operations
+-   `src/lib/api/bulk.ts` - Bulk upload API client
 -   `src/lib/api/utils/error-utils.ts` - Centralized error handling
 -   `src/lib/auth.ts` - Token management utilities
 -   `src/contexts/AuthContext.tsx` - Authentication state management
@@ -642,6 +690,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   `src/hooks/useProfile.ts` - Profile data management with fallback API
 -   `src/hooks/useAIModalState.ts` - Shared state for AI content modals
 -   `src/hooks/useDocumentSelection.ts` - Shared document selection with shift-click range support
+-   `src/hooks/useBulkUpload.ts` - Bulk upload state and job polling
 -   `src/hooks/ai/` - Modular AI hooks (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
 -   `src/hooks/rag/` - RAG hooks (useRagChatConfig, useRagChatSession, useSearchHistory)
 -   `src/components/documents/ai-modal/` - Unified AI content modal and views
@@ -666,6 +715,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 #### Document Processing Hooks
 
 -   `useDocumentActions()` - Document operations (upload, parse, save, delete)
+-   `useDocumentUpload()` - Single file upload with progress tracking
+-   `useBulkUpload()` - Bulk file upload (up to 10 files) with job polling and progress tracking
 -   `useDocumentSelection()` - Shared document selection with shift-click range support
 -   AI hooks in `src/hooks/ai/` - AI features integration (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
 -   `useAIModalState()` - Shared modal state (tabs, editing, regeneration options)

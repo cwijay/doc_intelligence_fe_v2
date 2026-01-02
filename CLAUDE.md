@@ -209,6 +209,63 @@ Use the `testApiConnection()` function from `src/lib/api.ts` to verify backend c
 3. Target path format: `{org_name}/original/{folder_name}/{file_name}`
 4. Files are stored in GCS bucket: `biz-to-bricks-document-store`
 
+### Bulk Upload Feature
+
+Bulk upload allows uploading multiple files (up to 10) for batch processing with AI-powered analysis.
+
+#### Bulk Upload Workflow
+1. Click **"Bulk Upload"** button first (switches to bulk mode)
+2. Select destination folder from dropdown
+3. Drag & drop or select multiple files (collected in `pendingFiles`, NOT uploaded yet)
+4. Click **"Start Bulk Upload"** button to initiate the upload and processing job
+
+#### Bulk Upload API (AI API - port 8001)
+- **Endpoint**: `POST /api/v1/bulk/upload`
+- **Request**: Multipart form data with files and options
+- **Response**: `BulkUploadResponse` with `job_id`, `status`, `uploaded_files`, `failed_files`
+
+```typescript
+// Request fields (FormData)
+folder_name: string;
+org_name: string;
+files: File[];
+generate_summary: boolean;    // default: true
+generate_faqs: boolean;       // default: true
+generate_questions: boolean;  // default: true
+num_faqs: number;             // default: 10
+num_questions: number;        // default: 10
+summary_max_words: number;    // default: 500
+auto_start: boolean;          // default: true
+```
+
+#### Job Status Polling
+- **Endpoint**: `GET /api/v1/bulk/jobs/{jobId}`
+- Polling starts automatically when job is created
+- Poll interval: 5 seconds (configurable)
+- Job states: `pending` → `processing` → `completed`/`partial_failure`/`failed`/`cancelled`
+
+#### Key Files
+- `src/hooks/useBulkUpload.ts` - Bulk upload state and polling management
+- `src/lib/api/bulk.ts` - Bulk upload API client
+- `src/components/documents/DocumentUploadSection.tsx` - Upload UI with bulk mode toggle
+- `src/components/ui/FileUpload.tsx` - File drop zone with bulk/single modes
+- `src/components/documents/BulkUploadProgress.tsx` - Job progress display
+
+#### useBulkUpload Hook
+```typescript
+const {
+  isUploading,      // File upload in progress
+  jobId,            // Active job ID
+  jobStatus,        // BulkJobStatusResponse
+  isPolling,        // Polling for job status
+  uploadProgress,   // Upload progress (0-100)
+  upload,           // (folderName, orgName, files, options?) => Promise
+  startPolling,     // (jobId) => void
+  stopPolling,      // () => void
+  reset,            // () => void
+} = useBulkUpload({ onComplete, onError, pollInterval });
+```
+
 ### Document Parsing & AI Features
 The application supports multiple AI-powered document operations:
 
@@ -356,6 +413,7 @@ The application uses a simplified 2-URL configuration pattern:
   - Questions generation (`/api/v1/documents/questions`)
   - RAG chat (`/api/v1/simple-rag`)
   - Document ingestion (`/api/v1/ingest`)
+  - Bulk upload (`/api/v1/bulk/upload`, `/api/v1/bulk/jobs/{jobId}`)
   - Excel chat
 
 ### API Clients
@@ -392,6 +450,11 @@ All API clients use the centralized client factory (`src/lib/api/client-factory.
   - `❓` - FAQ generation
   - `📋` - Questions generation
   - `🚫` - AI operation failures
+  - `🎯` - Bulk upload button clicks
+  - `📤` - Bulk upload initiation
+  - `🚀` - Bulk upload API calls
+  - `📬` - Bulk upload API responses
+  - `📦` - Document upload section state
 
 ### Important Debugging Hook: `useDocumentAI`
 - Contains comprehensive logging for AI feature operations
@@ -431,7 +494,8 @@ All API clients use the centralized client factory (`src/lib/api/client-factory.
 
 ### Specialized Hooks
 - `useDocumentActions()` - Document operations (parse, save, etc.)
-- `useDocumentUpload()` - File upload with progress tracking
+- `useDocumentUpload()` - Single file upload with progress tracking
+- `useBulkUpload()` - Bulk file upload with job polling (up to 10 files)
 - `useDocumentSelection()` - Shared selection logic for document lists (shift-click range selection)
 - `useExcelChat()` - Excel-specific chat functionality
 - `useFolderActions()` - Folder-specific operations
