@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Enterprise proxy: All routes redirect to /register
+// Proxy: Route protection and redirects
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Enterprise-grade routing: Allow dashboard and essential routes, redirect others to /register
-  const allowedRoutes = ['/register', '/dashboard', '/documents', '/organizations', '/users', '/unauthorized', '/profile', '/settings'];
+  const allowedRoutes = ['/register', '/dashboard', '/documents', '/organizations', '/users', '/unauthorized', '/profile', '/settings', '/usage', '/folders', '/insights'];
   const isAllowedRoute = allowedRoutes.some(route => pathname.startsWith(route));
 
   if (!isAllowedRoute) {

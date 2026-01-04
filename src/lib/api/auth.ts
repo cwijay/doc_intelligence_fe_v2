@@ -9,7 +9,7 @@ import {
   Organization,
   SessionUser,
 } from '@/types/auth';
-import { authService } from '../auth';
+import { authService } from '@/lib/auth';
 
 export const authApi = {
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {

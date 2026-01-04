@@ -5,8 +5,8 @@
 
 import { AxiosInstance } from 'axios';
 import { createApiClient, MAIN_API_CONFIG, ApiClientConfig } from './client-factory';
-import { getBrowserApiBaseUrl, isUsingLocalProxy, API_LOCAL_PROXY_PATH } from '../config';
-import { TIMEOUTS } from '../constants';
+import { getBrowserApiBaseUrl, isUsingLocalProxy, API_LOCAL_PROXY_PATH } from '@/lib/config';
+import { TIMEOUTS } from '@/lib/constants';
 
 // Determine the correct base URL based on environment
 const API_BASE_URL =

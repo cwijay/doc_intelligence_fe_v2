@@ -4,8 +4,9 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { UserPlusIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import FormModalHeader from '@/components/ui/FormModalHeader';
+import FormModalFooter from '@/components/ui/FormModalFooter';
 import PasswordRequirements, { requirements } from '@/components/ui/PasswordRequirements';
 import { useCreateUser } from '@/hooks/useUsers';
 import { UserCreateRequest, UserRole } from '@/types/api';
@@ -127,15 +128,11 @@ export default function AddUserModal({
       size="lg"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="flex items-center space-x-3 p-4 bg-primary-50 rounded-lg">
-          <div className="p-2 bg-primary-100 rounded-lg">
-            <UserPlusIcon className="w-6 h-6 text-primary-600" />
-          </div>
-          <div>
-            <h4 className="font-medium text-primary-900">Create User Account</h4>
-            <p className="text-sm text-primary-700">Add a new user to this organization.</p>
-          </div>
-        </div>
+        <FormModalHeader
+          icon={<UserPlusIcon className="w-6 h-6" />}
+          title="Create User Account"
+          description="Add a new user to this organization."
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
@@ -262,24 +259,12 @@ export default function AddUserModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-end space-x-3 pt-6 border-t border-secondary-200">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={isSubmitting}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Creating...' : 'Create User'}
-          </Button>
-        </div>
+        <FormModalFooter
+          onCancel={handleClose}
+          isSubmitting={isSubmitting}
+          submitText="Create User"
+          submittingText="Creating..."
+        />
       </form>
     </Modal>
   );

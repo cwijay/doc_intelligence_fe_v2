@@ -7,7 +7,13 @@
  */
 
 import aiApi from './ai-base';
-import { UsageHistoryResponse, UsagePeriod, UsageSummaryResponse } from '@/types/usage';
+import {
+  UsageHistoryResponse,
+  UsagePeriod,
+  UsageSummaryResponse,
+  SubscriptionResponse,
+  QuotaStatusResponse,
+} from '@/types/usage';
 
 export const usageApi = {
   /**
@@ -49,6 +55,69 @@ export const usageApi = {
       return response.data;
     } catch (error) {
       console.error('❌ usageApi.getSummary: Error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  },
+
+  /**
+   * Get subscription details and limits
+   * @returns Subscription tier info, limits, and pricing
+   */
+  getSubscription: async (): Promise<SubscriptionResponse> => {
+    console.log('📊 usageApi.getSubscription: Fetching subscription details');
+    try {
+      const response = await aiApi.get('/api/v1/usage/subscription');
+      console.log('✅ usageApi.getSubscription: Success', {
+        tier: response.data?.tier || 'unknown',
+        tokenLimit: response.data?.monthly_token_limit || 0,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ usageApi.getSubscription: Error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  },
+
+  /**
+   * Get quota limits and status
+   * @returns Quota status with approaching/exceeded warnings
+   */
+  getLimits: async (): Promise<QuotaStatusResponse> => {
+    console.log('📊 usageApi.getLimits: Fetching quota limits');
+    try {
+      const response = await aiApi.get('/api/v1/usage/limits');
+      console.log('✅ usageApi.getLimits: Success', {
+        allWithinLimits: response.data?.all_within_limits || false,
+        approaching: response.data?.approaching_limit || [],
+        exceeded: response.data?.exceeded || [],
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ usageApi.getLimits: Error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  },
+
+  /**
+   * Get usage breakdown by feature/model
+   * @returns Usage breakdown with feature-level details
+   */
+  getBreakdown: async (): Promise<UsageSummaryResponse> => {
+    console.log('📊 usageApi.getBreakdown: Fetching usage breakdown');
+    try {
+      const response = await aiApi.get('/api/v1/usage/breakdown');
+      console.log('✅ usageApi.getBreakdown: Success', {
+        breakdownCount: response.data?.feature_breakdown?.length || 0,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ usageApi.getBreakdown: Error', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;

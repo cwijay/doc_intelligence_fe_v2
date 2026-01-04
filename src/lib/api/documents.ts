@@ -13,7 +13,7 @@ import {
   DocumentDeleteResponse,
   DuplicateFileErrorDetail,
 } from '@/types/api';
-import { authService } from '../auth';
+import { authService } from '@/lib/auth';
 import { extractErrorMessage } from './utils/error-utils';
 
 /**

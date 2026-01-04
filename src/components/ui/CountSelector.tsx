@@ -9,6 +9,7 @@ import {
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import Button from './Button';
+import { UI_TIMING, POPOVER_CONFIG } from '@/lib/constants';
 
 interface CountSelectorProps {
   isOpen: boolean;
@@ -45,21 +46,21 @@ export default function CountSelector({
   useEffect(() => {
     if (isOpen && anchorEl) {
       const rect = anchorEl.getBoundingClientRect();
-      const popoverHeight = 300; // Approximate height
+      const popoverHeight = POPOVER_CONFIG.HEIGHT_ESTIMATE;
       const spaceBelow = window.innerHeight - rect.bottom;
-      
+
       // Position below if there's space, otherwise above
-      const top = spaceBelow > popoverHeight 
-        ? rect.bottom + 8
-        : rect.top - popoverHeight - 8;
-      
+      const top = spaceBelow > popoverHeight
+        ? rect.bottom + POPOVER_CONFIG.OFFSET
+        : rect.top - popoverHeight - POPOVER_CONFIG.OFFSET;
+
       setPosition({
         top,
         left: rect.left
       });
 
       // Focus input when opened
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => inputRef.current?.focus(), UI_TIMING.INPUT_FOCUS_DELAY);
     }
   }, [isOpen, anchorEl]);
 
@@ -84,7 +85,7 @@ export default function CountSelector({
     };
 
     if (isOpen) {
-      setTimeout(() => document.addEventListener('click', handleClickOutside), 0);
+      setTimeout(() => document.addEventListener('click', handleClickOutside), UI_TIMING.MICROTASK_DELAY);
     }
 
     return () => document.removeEventListener('click', handleClickOutside);

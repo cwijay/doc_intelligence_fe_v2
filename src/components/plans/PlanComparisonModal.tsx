@@ -5,7 +5,7 @@ import { clsx } from 'clsx';
 import { CheckIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/solid';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
-import { PLANS, PLAN_FEATURES, PLAN_LIMITS_LABELS, PlanLimit } from '@/lib/plans';
+import { PLANS, PLAN_FEATURES, PLAN_LIMITS_LABELS, PlanLimit, PlanInfo } from '@/lib/plans';
 import { PlanType } from '@/types/api';
 
 interface PlanComparisonModalProps {
@@ -13,6 +13,8 @@ interface PlanComparisonModalProps {
   onClose: () => void;
   selectedPlan: PlanType;
   onSelectPlan: (planId: PlanType) => void;
+  /** Optional plans to display - defaults to hardcoded PLANS if not provided */
+  plans?: PlanInfo[];
 }
 
 type TabType = 'limits' | 'features';
@@ -22,9 +24,13 @@ export default function PlanComparisonModal({
   onClose,
   selectedPlan,
   onSelectPlan,
+  plans: plansProp,
 }: PlanComparisonModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>('limits');
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
+
+  // Use provided plans or fallback to hardcoded
+  const plans = plansProp || PLANS;
 
   const handleSelectPlan = (planId: PlanType) => {
     onSelectPlan(planId);
@@ -101,7 +107,7 @@ export default function PlanComparisonModal({
                 <th className="text-left py-3 px-4 text-sm font-medium text-secondary-500 dark:text-secondary-400">
                   {activeTab === 'limits' ? 'Limit' : 'Feature'}
                 </th>
-                {PLANS.map((plan) => (
+                {plans.map((plan) => (
                   <th key={plan.id} className="text-center py-3 px-4 min-w-[140px]">
                     <div className="flex flex-col items-center">
                       {plan.highlighted && (
@@ -126,7 +132,7 @@ export default function PlanComparisonModal({
                     <td className="py-3 px-4 text-sm text-secondary-700 dark:text-secondary-300">
                       {PLAN_LIMITS_LABELS[limitKey]}
                     </td>
-                    {PLANS.map((plan) => (
+                    {plans.map((plan) => (
                       <td key={plan.id} className="text-center py-3 px-4 text-sm font-medium text-secondary-900 dark:text-secondary-100">
                         {plan.limits[limitKey]}
                       </td>
@@ -140,7 +146,7 @@ export default function PlanComparisonModal({
                     <td className="py-3 px-4 text-sm text-secondary-700 dark:text-secondary-300">
                       {feature.name}
                     </td>
-                    {PLANS.map((plan) => {
+                    {plans.map((plan) => {
                       const hasFeature = feature[plan.id as keyof typeof feature] as boolean;
                       return (
                         <td key={plan.id} className="text-center py-3 px-4">
@@ -161,7 +167,7 @@ export default function PlanComparisonModal({
 
         {/* Pricing & Select Buttons */}
         <div className="grid grid-cols-3 gap-4 pt-4 border-t border-secondary-200 dark:border-secondary-700">
-          {PLANS.map((plan) => {
+          {plans.map((plan) => {
             const price = billingPeriod === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
             const isSelected = selectedPlan === plan.id;
 

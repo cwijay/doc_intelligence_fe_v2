@@ -1,5 +1,5 @@
 import { AxiosResponse } from 'axios';
-import aiApi from '../ai-base';
+import aiApi from '@/lib/api/ai-base';
 import {
   Document,
   DocumentQuestions,
@@ -16,6 +16,7 @@ import {
   logGenerationError,
   buildBaseRequest
 } from './helpers';
+import { handleGenerateAndConvertResponse } from './errors';
 
 export const questionsApi = {
   /**
@@ -142,30 +143,12 @@ export const questionsApi = {
       fullResponse: response
     });
 
-    // Check for explicit error first
-    if (response.error) {
-      // Provide more helpful error messages for common issues
-      const errorMsg = response.error;
-      if (errorMsg.toLowerCase().includes('not found') || errorMsg.toLowerCase().includes('does not exist')) {
-        throw new Error(`Document not found. Please ensure the document has been parsed before generating questions.`);
-      }
-      if (errorMsg.toLowerCase().includes('failed to generate')) {
-        throw new Error(`${errorMsg}. This may happen if the document hasn't been parsed yet. Please parse the document first.`);
-      }
-      throw new Error(errorMsg);
-    }
-
-    // Consider successful if we have questions data, even if success field is missing/false
-    // Backend may not always set success=true explicitly
-    const hasQuestionsData = response.questions && response.questions.length > 0;
-    if (!response.success && !hasQuestionsData) {
-      throw new Error('Failed to generate questions: No questions data received');
-    }
-
-    // Warn if success is false but we have data
-    if (!response.success && hasQuestionsData) {
-      console.warn('⚠️ Questions response has success=false but contains questions data, proceeding anyway');
-    }
+    // Use shared error handling
+    handleGenerateAndConvertResponse(
+      response,
+      (r) => !!(r.questions && r.questions.length > 0),
+      'Questions'
+    );
 
     return questionsApi.convertToDocumentQuestions(response, document.id);
   },

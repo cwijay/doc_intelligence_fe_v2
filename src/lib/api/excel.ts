@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Document } from '@/types/api';
-import { authService } from '../auth';
-import { clientConfig } from '../config';
+import { authService } from '@/lib/auth';
+import { clientConfig } from '@/lib/config';
 
 // Sheets Agent API Base URL from environment configuration
 // Uses the AI API base URL where the SheetsAgent is hosted

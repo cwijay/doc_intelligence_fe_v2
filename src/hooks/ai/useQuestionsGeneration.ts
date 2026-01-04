@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Document, DocumentQuestions } from '@/types/api';
 import { questionsApi } from '@/lib/api/ai-features';
-import { useAuth } from '@/hooks/useAuth';
-import { resolveFolderName } from './utils';
+import { useAIGeneration } from './useAIGeneration';
 import toast from 'react-hot-toast';
+
+export interface QuestionsOptions {
+  numQuestions?: number;
+  force?: boolean;
+}
 
 export interface QuestionsGenerationState {
   selectedDocument: Document | null;
@@ -25,133 +29,71 @@ export type QuestionsGenerationReturn = QuestionsGenerationState & QuestionsGene
 
 /**
  * Hook for document questions generation
+ * Uses the generic useAIGeneration hook for common functionality
  */
 export function useQuestionsGeneration(): QuestionsGenerationReturn {
-  const { user } = useAuth();
-
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [data, setData] = useState<DocumentQuestions | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleQuestions = useCallback(async (document: Document, quantity: number = 10) => {
-    if (!user?.org_name || !user?.org_id) {
-      toast.error('Organization information not available. Please log in again.');
-      return;
-    }
-
-    try {
-      setSelectedDocument(document);
-      setIsGenerating(true);
-      setIsModalOpen(true);
-      setData(null);
-
-      console.log('Starting questions generation for:', document.name);
-      toast.loading(`Generating ${quantity} questions for: ${document.name}`, { id: `questions-${document.id}` });
-
-      const folderName = await resolveFolderName(document, user.org_id);
-
-      const documentQuestions = await questionsApi.generateAndConvert(
+  const {
+    selectedDocument,
+    data,
+    setData,
+    isModalOpen,
+    isGenerating,
+    handleGenerate,
+    handleModalClose,
+    handleRegenerate: baseRegenerate,
+  } = useAIGeneration<DocumentQuestions, QuestionsOptions>({
+    featureName: 'questions',
+    displayName: 'Questions',
+    generateFn: async (document, orgName, folderName, options) => {
+      return questionsApi.generateAndConvert(
         document,
-        user.org_name,
+        orgName,
         folderName,
-        quantity
-      );
-
-      setData(documentQuestions);
-
-      // Show difficulty distribution in toast
-      const dist = documentQuestions.difficulty_distribution;
-      const distText = dist ? ` (Easy: ${dist.easy}, Medium: ${dist.medium}, Hard: ${dist.hard})` : '';
-
-      toast.success(
-        `${documentQuestions.count} questions generated${distText}${documentQuestions.cached ? ' (cached)' : ''}`,
-        { id: `questions-${document.id}` }
-      );
-      console.log('Questions generated successfully for:', document.name);
-
-    } catch (error) {
-      console.error('Questions operation failed:', error);
-
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate questions';
-
-      toast.error(`Failed to generate questions for ${document.name}: ${errorMessage}`, {
-        id: `questions-${document.id}`
-      });
-
-      setData(null);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [user]);
-
-  const handleModalClose = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedDocument(null);
-    setData(null);
-    setIsGenerating(false);
-  }, []);
-
-  const handleSave = useCallback(async (questions: string[]) => {
-    if (!selectedDocument || !data) return;
-
-    // Map string[] to the questions array format
-    setData({
-      ...data,
-      questions: questions.map(q => ({
-        question: q,
-        type: 'short_answer' as const
-      })),
-      updated_at: new Date().toISOString()
-    });
-    toast.success(`Questions saved for: ${selectedDocument.name}`);
-  }, [selectedDocument, data]);
-
-  const handleRegenerate = useCallback(async (options?: { numQuestions?: number }) => {
-    if (!selectedDocument || !user?.org_name || !user?.org_id) return;
-
-    try {
-      setIsGenerating(true);
-      console.log('Regenerating questions for:', selectedDocument.name);
-      toast.loading(`Regenerating questions for: ${selectedDocument.name}`, {
-        id: `regen-questions-${selectedDocument.id}`
-      });
-
-      const folderName = await resolveFolderName(selectedDocument, user.org_id);
-
-      const documentQuestions = await questionsApi.generateAndConvert(
-        selectedDocument,
-        user.org_name,
-        folderName,
-        options?.numQuestions || 10,
+        options?.numQuestions ?? 10,
         undefined,
-        true // force regeneration
+        options?.force ?? false
       );
+    },
+    formatSuccessMessage: (result, cached) => {
+      const dist = result.difficulty_distribution;
+      const distText = dist ? ` (Easy: ${dist.easy}, Medium: ${dist.medium}, Hard: ${dist.hard})` : '';
+      return `${result.count} questions generated${distText}${cached ? ' (cached)' : ''}`;
+    },
+  });
 
-      setData(documentQuestions);
+  // Wrap handleGenerate to match existing API (quantity as second param)
+  const handleQuestions = useCallback(
+    async (document: Document, quantity: number = 10) => {
+      await handleGenerate(document, { numQuestions: quantity });
+    },
+    [handleGenerate]
+  );
 
-      const dist = documentQuestions.difficulty_distribution;
-      const distText = dist ? ` (E:${dist.easy} M:${dist.medium} H:${dist.hard})` : '';
+  // Wrap handleRegenerate to add force flag and custom success message
+  const handleRegenerate = useCallback(
+    async (options?: { numQuestions?: number }) => {
+      await baseRegenerate({ numQuestions: options?.numQuestions ?? 10, force: true });
+    },
+    [baseRegenerate]
+  );
 
-      toast.success(
-        `${documentQuestions.count} questions regenerated${distText}`,
-        { id: `regen-questions-${selectedDocument.id}` }
-      );
-      console.log('Questions regenerated successfully');
+  // Custom save handler for questions (maps string[] to question objects)
+  const handleSave = useCallback(
+    async (questions: string[]) => {
+      if (!selectedDocument || !data) return;
 
-    } catch (error) {
-      console.error('Questions regeneration failed:', error);
-
-      const errorMessage = error instanceof Error ? error.message : 'Failed to regenerate questions';
-
-      toast.error(`Failed to regenerate questions: ${errorMessage}`, {
-        id: `regen-questions-${selectedDocument.id}`
+      setData({
+        ...data,
+        questions: questions.map(q => ({
+          question: q,
+          type: 'short_answer' as const
+        })),
+        updated_at: new Date().toISOString()
       });
-      throw error;
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [selectedDocument, user]);
+      toast.success(`Questions saved for: ${selectedDocument.name}`);
+    },
+    [selectedDocument, data, setData]
+  );
 
   return {
     selectedDocument,

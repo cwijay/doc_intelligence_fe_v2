@@ -174,6 +174,57 @@ export function isAuthError(error: unknown): boolean {
 }
 
 /**
+ * Check if an error is a quota exceeded error (402 Payment Required)
+ */
+export function isQuotaExceededError(error: unknown): boolean {
+  if (error instanceof AxiosError && error.response?.status === 402) {
+    const data = error.response?.data;
+    return data?.error?.error === 'quota_exceeded' || data?.error === 'quota_exceeded';
+  }
+  return false;
+}
+
+/**
+ * Format a user-friendly message for quota exceeded errors
+ */
+export function formatQuotaExceededMessage(data: unknown): string {
+  if (!data || typeof data !== 'object') {
+    return 'Usage quota exceeded. Please upgrade your plan to continue.';
+  }
+
+  const errorData = (data as Record<string, unknown>).error as Record<string, unknown> | undefined;
+  if (!errorData || typeof errorData !== 'object') {
+    return 'Usage quota exceeded. Please upgrade your plan to continue.';
+  }
+
+  const currentUsage = errorData.current_usage as number | undefined;
+  const limit = errorData.limit as number | undefined;
+  const usageType = errorData.usage_type as string | undefined;
+  const upgrade = errorData.upgrade as Record<string, unknown> | undefined;
+
+  // Build user-friendly message
+  let message = "You've reached your";
+  if (usageType) {
+    message += ` ${usageType}`;
+  }
+  message += ' limit';
+
+  if (currentUsage !== undefined && limit !== undefined) {
+    message += ` (${currentUsage.toLocaleString()}/${limit.toLocaleString()} used)`;
+  }
+
+  message += '.';
+
+  if (upgrade?.message) {
+    message += ` ${upgrade.message} to continue.`;
+  } else {
+    message += ' Please upgrade your plan to continue.';
+  }
+
+  return message;
+}
+
+/**
  * Create a user-friendly error message from an error
  */
 export function createErrorMessage(error: unknown): string {
@@ -196,6 +247,12 @@ export function createErrorMessage(error: unknown): string {
           return error.response?.data?.detail || 'Invalid request. Please check your input.';
         case 401:
           return 'Authentication failed. Please log in again.';
+        case 402:
+          // Handle quota exceeded errors with user-friendly message
+          if (isQuotaExceededError(error)) {
+            return formatQuotaExceededMessage(error.response?.data);
+          }
+          return 'Payment required. Please upgrade your plan to continue.';
         case 403:
           return 'You do not have permission to perform this action.';
         case 404:

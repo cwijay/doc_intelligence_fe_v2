@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { FolderIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { FolderIcon } from '@heroicons/react/24/outline';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import FormModalHeader from '@/components/ui/FormModalHeader';
+import FormModalFooter from '@/components/ui/FormModalFooter';
 import { useCreateFolder } from '@/hooks/useFolders';
 import { FolderCreateRequest } from '@/types/api';
 import toast from 'react-hot-toast';
@@ -94,32 +95,13 @@ export default function CreateFolderModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="md">
-      <div className="flex items-center justify-between p-6 border-b border-secondary-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-            <FolderIcon className="w-5 h-5 text-primary-600" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-secondary-900">
-              Create New Folder
-            </h2>
-            <p className="text-sm text-secondary-600">
-              {parentFolderId ? 'Create a subfolder' : 'Create a new folder to organize your documents'}
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
-          <XMarkIcon className="w-5 h-5" />
-        </Button>
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+    <Modal isOpen={isOpen} onClose={handleClose} size="md" title="Create New Folder">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <FormModalHeader
+          icon={<FolderIcon className="w-6 h-6" />}
+          title="Create Folder"
+          description={parentFolderId ? 'Create a subfolder' : 'Create a new folder to organize your documents'}
+        />
         <div className="space-y-4">
           <Input
             label="Folder Name"
@@ -165,24 +147,14 @@ export default function CreateFolderModal({
           )}
         </div>
 
-        <div className="flex justify-end space-x-3 pt-4 border-t border-secondary-200">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={isSubmitting}
-            disabled={!isValid || isSubmitting}
-          >
-            {isSubmitting ? 'Creating...' : 'Create Folder'}
-          </Button>
-        </div>
+        <FormModalFooter
+          onCancel={handleClose}
+          isSubmitting={isSubmitting}
+          isDisabled={!isValid}
+          submitText="Create Folder"
+          submittingText="Creating..."
+          cancelVariant="outline"
+        />
       </form>
     </Modal>
   );

@@ -3,8 +3,8 @@
  */
 import { AxiosResponse } from 'axios';
 import { ingestApi } from './clients';
-import { clientConfig } from '../../config';
-import { mergeMetadata } from '../../content-metadata';
+import { clientConfig } from '@/lib/config';
+import { mergeMetadata } from '@/lib/content-metadata';
 import { STORAGE_PATHS, FILE_EXTENSIONS, TIMEOUTS } from '@/lib/constants';
 import {
   IngestRequest,

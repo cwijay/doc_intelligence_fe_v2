@@ -459,8 +459,7 @@ export function useDocumentActions(): UseDocumentActionsReturn {
         toast.success(`Document saved to ${response.saved_path}`);
       }
 
-      // Close the modal after successful save
-      closeParseModal();
+      // Modal stays open so user can proceed to Extract Data
 
     } catch (error) {
       console.error('🚨 Save and index operation failed:', error);

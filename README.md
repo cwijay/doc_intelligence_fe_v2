@@ -40,6 +40,25 @@ Biz-To-Bricks provides intelligent document processing with AI-powered analysis,
 -   **Multi-Tenant Support**: Organization-based access control and data isolation
 -   **Session Management**: Configurable session timeouts and security policies
 
+### 📊 Analytics & Usage Tracking
+
+-   **Insights Dashboard**: Comprehensive audit and analytics for document processing
+    -   Processing jobs table with status filters and pagination
+    -   Activity timeline with real-time updates (30-second auto-refresh)
+    -   Dashboard stats: documents processed, jobs, generations, processing times
+    -   Cache hit rate monitoring and performance metrics
+-   **Usage Quota Management**: Real-time usage tracking with visual alerts
+    -   Track API tokens, parse pages, search queries, and storage
+    -   Progress bars with color-coded status (green/yellow/amber/red)
+    -   Warning banners for approaching and exceeded quotas
+-   **Subscription Tiers**: 3-tier system (Free, Pro, Enterprise)
+    -   Feature-based tier comparison
+    -   Upgrade prompts and pricing display
+    -   Monthly/annual pricing options
+-   **Cost Analytics**: Detailed cost breakdown by feature
+    -   Usage trends charts with period selection (7d/14d/21d/28d/30d/90d)
+    -   Feature-level cost distribution (pie chart)
+
 ### 🏢 Enterprise Features
 
 -   **Organization Management**: Multi-tenant organization support with admin controls
@@ -71,6 +90,9 @@ Biz-To-Bricks provides intelligent document processing with AI-powered analysis,
     -   Document ingestion (`/api/v1/ingest`)
     -   Bulk upload & processing (`/api/v1/bulk/upload`, `/api/v1/bulk/jobs`)
     -   Excel chat
+    -   Insights & Audit (`/api/v1/audit/*`)
+    -   Usage tracking (`/api/v1/usage/*`)
+    -   Subscription tiers (`/api/v1/tiers`)
 
 ## 🏗️ Architecture
 
@@ -93,12 +115,14 @@ flowchart TD
             Documents
             Folders
             Settings
+            Insights
+            Usage
         end
 
         StateLayer["TanStack Query + React Context"]
         APILayer["Axios API Layer (Interceptors)"]
 
-        Dashboard & Documents & Folders & Settings --> StateLayer
+        Dashboard & Documents & Folders & Settings & Insights & Usage --> StateLayer
         StateLayer --> APILayer
     end
 
@@ -118,6 +142,8 @@ flowchart TD
         RAG["RAG Chat (DocumentAgent)"]
         Ingestion["Document Ingestion"]
         Excel["Excel Chat"]
+        Audit["Insights & Audit"]
+        UsageAPI["Usage & Tiers"]
     end
 
     subgraph GCS["Google Cloud Storage (GCS)"]
@@ -175,14 +201,31 @@ flowchart TD
             Dashboard2["Dashboard"]
             Documents2["Documents"]
             Folders2["Folders"]
+            Insights2["Insights"]
+            Usage2["Usage"]
         end
 
         subgraph Components["components/ (UI)"]
             subgraph DocComponents["documents/"]
                 AIModal["ai-modal/"]
+                AIProgress["ai-progress/"]
                 Card["card/"]
                 TreeLayout["TreeLayout"]
                 RagChat["RagChatModal"]
+            end
+            subgraph InsightsComponents["insights/"]
+                InsightsDash["Dashboard"]
+                ActivityTL["ActivityTimeline"]
+                JobsTable["JobsTable"]
+            end
+            subgraph UsageComponents["usage/"]
+                UsageDash["UsageDashboard"]
+                QuotaBar["QuotaProgressBar"]
+                SubCard["SubscriptionCard"]
+            end
+            subgraph Charts["charts/"]
+                TrendsChart["UsageTrendsChart"]
+                BreakdownChart["UsageBreakdownChart"]
             end
         end
 
@@ -191,7 +234,10 @@ flowchart TD
                 useSummary["useSummary"]
                 useFAQ["useFAQ"]
                 useQuestions["useQuestions"]
+                useAIGen["useAIGeneration"]
             end
+            useInsights["useInsights"]
+            useTiers["useTiers"]
         end
 
         subgraph Contexts["contexts/"]
@@ -204,6 +250,8 @@ flowchart TD
                 BaseTS["base.ts"]
                 AIBase["ai-base"]
                 IngestionAPI["ingestion"]
+                InsightsAPI["insights"]
+                TiersAPI["tiers"]
             end
         end
 
@@ -211,6 +259,8 @@ flowchart TD
             ApiTypes["api.ts"]
             AuthTypes["auth.ts"]
             RagTypes["rag.ts"]
+            InsightsTypes["insights.ts"]
+            UsageTypes["usage.ts"]
         end
     end
 
@@ -445,6 +495,60 @@ auto_start: true
 | Folder | `folder_filter: "Legal"` | Search all files in folder |
 | Org-wide | No filters | Search ALL org documents |
 
+#### Insights & Audit (AI API - port 8001)
+
+Track document processing activity and performance:
+
+-   `GET /api/v1/audit/dashboard` - Dashboard stats (documents, jobs, generations, processing times)
+-   `GET /api/v1/audit/activity` - Activity timeline with pagination
+-   `GET /api/v1/audit/jobs` - Processing jobs list with status filtering
+-   `GET /api/v1/audit/jobs/{job_id}` - Individual job details
+
+**Dashboard Response:**
+```json
+{
+  "documents_processed": 150,
+  "total_jobs": 45,
+  "total_generations": 300,
+  "avg_processing_time_ms": 2500,
+  "cache_hit_rate": 0.65,
+  "jobs_by_status": { "completed": 40, "processing": 3, "failed": 2 }
+}
+```
+
+#### Usage & Subscription (AI API - port 8001)
+
+Monitor usage quotas and manage subscriptions:
+
+-   `GET /api/v1/tiers` - Available subscription tiers (public, no auth)
+-   `GET /api/v1/usage/summary` - Current period usage summary
+-   `GET /api/v1/usage/history?period=7d` - Historical usage data (7d/14d/21d/28d/30d/90d)
+-   `GET /api/v1/usage/subscription` - Subscription details and tier info
+-   `GET /api/v1/usage/limits` - Quota status with alerts
+-   `GET /api/v1/usage/breakdown` - Feature-level usage breakdown
+
+**Usage Summary Response:**
+```json
+{
+  "tokens_used": 150000,
+  "tokens_limit": 500000,
+  "tokens_percentage": 30,
+  "llamaparse_pages_used": 45,
+  "llamaparse_pages_limit": 100,
+  "storage_used_gb": 2.5,
+  "storage_limit_gb": 10
+}
+```
+
+**Quota Limits Response:**
+```json
+{
+  "all_within_limits": false,
+  "approaching_limit": ["tokens"],
+  "exceeded": ["llamaparse_pages"]
+}
+```
+
 ### Health & Monitoring
 
 -   `GET /health` - Health check
@@ -513,18 +617,32 @@ auto_start: true
     -   **Excel Chat**: Specialized AI chat for Excel documents
     -   **Markdown Rendering**: Full markdown support with syntax highlighting for code blocks
 5.  **Folders** (`/folders`)
-    
+
     -   Folder management and organization (required for document uploads)
     -   Document categorization and access control
     -   Folder-based document viewing and filtering
-6.  **Organizations** (`/organizations`)
-    
+6.  **Insights** (`/insights`)
+
+    -   **Overview Tab**: Dashboard with processing stats, job status breakdown, and generation metrics
+    -   **Activity Tab**: Real-time activity timeline with event icons and status badges
+    -   **Jobs Tab**: Processing jobs table with status filtering and pagination
+    -   Period selection (7d/30d/90d/all) with auto-refresh (30 seconds)
+7.  **Usage** (`/usage`)
+
+    -   **Usage Dashboard**: Overview cards for tokens, parse pages, search queries, and storage
+    -   **Quota Progress**: Visual progress bars with color-coded status indicators
+    -   **Subscription Card**: Current tier, pricing, and feature limits
+    -   **Usage Trends**: Line chart with period selection (7d-90d)
+    -   **Cost Breakdown**: Pie chart showing feature-level cost distribution
+    -   Warning banners for approaching and exceeded quotas
+8.  **Organizations** (`/organizations`)
+
     -   Organization listing with search and filters
     -   Create, edit, and delete organizations
     -   Plan type management
     -   Status monitoring
-7.  **Users** (`/users`) - Admin Only
-    
+9.  **Users** (`/users`) - Admin Only
+
     -   User management within organization
     -   Role assignment and permissions
     -   User invitation and removal
@@ -684,6 +802,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   `src/lib/api/ingestion/` - Document ingestion and RAG operations
 -   `src/lib/api/bulk.ts` - Bulk upload API client
 -   `src/lib/api/utils/error-utils.ts` - Centralized error handling
+-   `src/lib/api/insights.ts` - Insights/audit API client
+-   `src/lib/api/tiers.ts` - Tiers/subscription API client
+-   `src/lib/api/ai-features/errors.ts` - AI feature error handling
 -   `src/lib/auth.ts` - Token management utilities
 -   `src/contexts/AuthContext.tsx` - Authentication state management
 -   `src/middleware.ts` - Route protection and caching
@@ -691,11 +812,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   `src/hooks/useAIModalState.ts` - Shared state for AI content modals
 -   `src/hooks/useDocumentSelection.ts` - Shared document selection with shift-click range support
 -   `src/hooks/useBulkUpload.ts` - Bulk upload state and job polling
+-   `src/hooks/useInsights.ts` - Insights dashboard hooks with auto-refresh
+-   `src/hooks/useTiers.ts` - Subscription tier hooks
 -   `src/hooks/ai/` - Modular AI hooks (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
+-   `src/hooks/ai/useAIGeneration.ts` - Generic AI generation hook (factory pattern)
 -   `src/hooks/rag/` - RAG hooks (useRagChatConfig, useRagChatSession, useSearchHistory)
 -   `src/components/documents/ai-modal/` - Unified AI content modal and views
+-   `src/components/documents/ai-progress/` - AI progress toast factory
 -   `src/components/documents/card/` - Reusable document card components
+-   `src/components/insights/` - Insights dashboard, activity timeline, jobs table
+-   `src/components/usage/` - Usage dashboard, quota progress, subscription card
+-   `src/components/charts/` - Recharts-based usage trends and breakdown charts
 -   `src/components/ui/StatusBadge.tsx` - Unified status badge with variants (full, dot, icon)
+-   `src/components/ui/FormModalHeader.tsx` - Reusable form modal header
+-   `src/components/ui/FormModalFooter.tsx` - Reusable form modal footer
 -   `src/components/documents/DocumentParseModal.tsx` - Interactive document editor
 
 ### Custom Hooks Architecture
@@ -719,8 +849,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   `useBulkUpload()` - Bulk file upload (up to 10 files) with job polling and progress tracking
 -   `useDocumentSelection()` - Shared document selection with shift-click range support
 -   AI hooks in `src/hooks/ai/` - AI features integration (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
+-   `useAIGeneration()` - Generic AI generation hook with factory pattern (reduces code duplication)
 -   `useAIModalState()` - Shared modal state (tabs, editing, regeneration options)
 -   RAG hooks in `src/hooks/rag/` - RAG-based document chat functionality (useRagChatConfig, useRagChatSession)
+
+#### Analytics & Usage Hooks
+
+-   `useInsights()` - Insights dashboard data with auto-refresh (30s interval)
+-   `useInsightsDashboard()` - Dashboard stats (documents, jobs, generations)
+-   `useActivityTimeline()` - Activity timeline with pagination
+-   `useProcessingJobs()` - Processing jobs with status filtering
+-   `useTiers()` - Subscription tiers (public endpoint, long cache)
+-   `useUsageDashboard()` - Combined usage dashboard hook
+-   `useUsageSummary()` - Current period usage summary
+-   `useQuotaLimits()` - Quota status with approaching/exceeded alerts
 
 #### AI Features Architecture
 

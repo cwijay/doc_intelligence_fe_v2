@@ -5,7 +5,7 @@
  * when the document has already been parsed but parsing times out on retry.
  */
 import { AxiosResponse } from 'axios';
-import aiApi from '../ai-base';
+import aiApi from '@/lib/api/ai-base';
 import {
   LoadParsedRequest,
   LoadParsedResponse,

@@ -17,6 +17,7 @@ import {
   SunIcon,
   MoonIcon,
   SparklesIcon,
+  LightBulbIcon,
 } from '@heroicons/react/24/outline';
 import Logo from '@/components/ui/Logo';
 import { clsx } from 'clsx';
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon },
   { name: 'Documents', href: '/documents', icon: DocumentTextIcon },
   { name: 'Usage', href: '/usage', icon: ChartPieIcon },
+  { name: 'Insights', href: '/insights', icon: LightBulbIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];
 

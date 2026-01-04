@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   DocumentTextIcon,
-  CloudArrowUpIcon,
+  BoltIcon,
   ChartBarIcon,
-  BuildingOfficeIcon,
+  CircleStackIcon,
   SparklesIcon,
   PlusIcon,
   ArrowRightIcon,
@@ -17,10 +17,10 @@ import Button from '@/components/ui/Button';
 import AuthGuard from '@/components/guards/AuthGuard';
 import { useAuth } from '@/hooks/useAuth';
 import { useDocumentStats } from '@/hooks/useFolders';
-import { useRecentActivity } from '@/hooks/useRecentActivity';
+import { useActivityTimeline } from '@/hooks/useInsights';
+import { useUsageSummary } from '@/hooks/useUsageHistory';
 import { formatFileSize } from '@/lib/file-utils';
-import { Document } from '@/types/api';
-import DocumentContentModal from '@/components/documents/DocumentContentModal';
+import { ActivityTimeline, ActivityTimelineSkeleton } from '@/components/insights/ActivityTimeline';
 import { useCapabilitiesModal } from '@/hooks/useCapabilitiesModal';
 import { CapabilitiesModal } from '@/components/ui/CapabilitiesModal';
 
@@ -36,7 +36,6 @@ function DashboardContent() {
   const router = useRouter();
   const { user } = useAuth();
   const organizationId = user?.org_id || '';
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const capabilitiesModal = useCapabilitiesModal();
 
   // Fetch document stats for document count
@@ -45,12 +44,24 @@ function DashboardContent() {
     !!organizationId // only fetch if we have an organization ID
   );
 
-  // Fetch recent activity data
-  const { data: recentActivities, isLoading: activitiesLoading, error: activitiesError } = useRecentActivity(
-    organizationId,
+  // Fetch recent activity data from audit endpoint
+  const { data: activityData, isLoading: activitiesLoading, error: activitiesError } = useActivityTimeline(
+    { limit: 10 },
     !!organizationId // only fetch if we have an organization ID
   );
 
+  // Fetch usage summary for API usage card
+  const { data: usageSummary, isLoading: usageLoading, error: usageError } = useUsageSummary(
+    !!organizationId
+  );
+
+
+  // Helper to format large numbers (1000 → 1K, 1000000 → 1M)
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
 
   // Debug: Log stats data (can be removed in production)
   if (process.env.NODE_ENV === 'development') {
@@ -63,7 +74,13 @@ function DashboardContent() {
       storageUsedFormatted: documentStats?.storage_used ? formatFileSize(documentStats.storage_used) : 'N/A',
       activitiesLoading,
       activitiesError: activitiesError?.message,
-      activitiesCount: recentActivities?.length || 0
+      activitiesCount: activityData?.activities?.length || 0,
+      usageLoading,
+      usageError: usageError?.message,
+      tokensUsed: usageSummary?.tokens_used,
+      tokensLimit: usageSummary?.tokens_limit,
+      tokensPercentage: usageSummary?.tokens_percentage,
+      storageLimitGb: usageSummary?.storage_limit_gb
     });
   }
 
@@ -78,22 +95,42 @@ function DashboardContent() {
       description: statsLoading ? 'Loading document data...' : (statsError ? 'Unable to load document data from API' : 'Documents in your organization'),
       link: '/documents'
     },
-    { 
-      name: 'Processing Queue', 
-      value: '5', // TODO: Connect to real processing API when available
-      change: '-8%', 
-      changeType: 'decrease' as const,
-      icon: CloudArrowUpIcon,
-      description: 'Documents being processed',
-      link: '/documents'
+    {
+      name: 'API Usage',
+      value: usageLoading ? '...' : (usageError ? 'Error' : formatNumber(usageSummary?.tokens_used || 0)),
+      change: (() => {
+        if (usageLoading) return 'Loading...';
+        if (usageError) return 'API Error';
+        const pct = usageSummary?.tokens_percentage || 0;
+        if (pct === 0) return '0%';
+        if (pct < 1) return '< 1%';
+        return `${Math.round(pct)}%`;
+      })(),
+      changeType: (usageSummary?.tokens_percentage || 0) > 80 ? 'decrease' as const : 'increase' as const,
+      icon: BoltIcon,
+      description: usageLoading ? 'Loading usage data...' : (usageError ? 'Unable to load usage data' : `${formatNumber(usageSummary?.tokens_used || 0)} / ${formatNumber(usageSummary?.tokens_limit || 0)} tokens`),
+      link: '/usage'
     },
-    { 
-      name: 'Storage Used', 
+    {
+      name: 'Storage',
       value: statsLoading ? '...' : (statsError ? 'Error' : formatFileSize(documentStats?.storage_used || 0)),
-      change: statsLoading ? 'Loading...' : (statsError ? 'API Error' : `${documentStats?.storage_used ? '+' : ''}${formatFileSize(documentStats?.storage_used || 0)}`),
-      changeType: statsError ? 'decrease' as const : 'increase' as const,
-      icon: BuildingOfficeIcon,
-      description: statsLoading ? 'Loading storage data...' : (statsError ? 'Unable to load storage data from API' : 'Organization storage usage')
+      change: (() => {
+        if (statsLoading || usageLoading) return 'Loading...';
+        if (statsError) return 'API Error';
+        const limitBytes = (usageSummary?.storage_limit_gb || 5) * 1024 * 1024 * 1024;
+        const pct = ((documentStats?.storage_used || 0) / limitBytes) * 100;
+        if (pct === 0) return '0%';
+        if (pct < 1) return '< 1%';
+        return `${Math.round(pct)}%`;
+      })(),
+      changeType: (() => {
+        const limitBytes = (usageSummary?.storage_limit_gb || 5) * 1024 * 1024 * 1024;
+        const pct = ((documentStats?.storage_used || 0) / limitBytes) * 100;
+        return pct > 80 ? 'decrease' as const : 'increase' as const;
+      })(),
+      icon: CircleStackIcon,
+      description: statsLoading ? 'Loading storage data...' : (statsError ? 'Unable to load storage data' : `${formatFileSize(documentStats?.storage_used || 0)} / ${usageSummary?.storage_limit_gb || 5} GB`),
+      link: '/usage'
     },
   ];
 
@@ -183,7 +220,7 @@ function DashboardContent() {
                     <ChartBarIcon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                     <span>Recent Activity</span>
                   </span>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" onClick={() => router.push('/insights?tab=activity')}>
                     View All
                   </Button>
                 </CardTitle>
@@ -192,53 +229,19 @@ function DashboardContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {activitiesLoading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 dark:border-primary-400 mx-auto mb-4"></div>
-                      <p className="text-secondary-600 dark:text-secondary-400 text-sm">Loading recent activities...</p>
-                    </div>
-                  ) : activitiesError ? (
-                    <div className="text-center py-8">
-                      <p className="text-error-600 dark:text-error-400 text-sm">Failed to load recent activities</p>
-                    </div>
-                  ) : !recentActivities || recentActivities.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-secondary-500 dark:text-secondary-400 text-sm">No recent activities found</p>
-                    </div>
-                  ) : (
-                    recentActivities.map((activity, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-secondary-50 dark:hover:bg-secondary-700/50 transition-colors duration-200">
-                      <div className={`p-2 rounded-full ${
-                        activity.status === 'success' ? 'bg-success-100 dark:bg-success-900/40' :
-                        activity.status === 'error' ? 'bg-error-100 dark:bg-error-900/40' :
-                        'bg-primary-100 dark:bg-primary-900/40'
-                      }`}>
-                        {activity.status === 'success' && <SparklesIcon className="w-4 h-4 text-success-600 dark:text-success-400" />}
-                        {activity.status === 'error' && <DocumentTextIcon className="w-4 h-4 text-error-600 dark:text-error-400" />}
-                        {activity.status === 'info' && <BuildingOfficeIcon className="w-4 h-4 text-primary-600 dark:text-primary-400" />}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-secondary-900 dark:text-secondary-100">
-                          {activity.document ? (
-                            <>
-                              <button
-                                onClick={() => setSelectedDocument(activity.document!)}
-                                className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded"
-                              >
-                                {activity.document.name}
-                              </button>
-                              <span>{activity.message.replace(activity.document.name, '')}</span>
-                            </>
-                          ) : (
-                            activity.message
-                          )}
-                        </p>
-                        <p className="text-xs text-secondary-500 dark:text-secondary-400">{activity.time}</p>
-                      </div>
-                    </div>
-                  )))}
-                </div>
+                {activitiesLoading ? (
+                  <ActivityTimelineSkeleton />
+                ) : activitiesError ? (
+                  <div className="text-center py-8">
+                    <p className="text-error-600 dark:text-error-400 text-sm">Failed to load recent activities</p>
+                  </div>
+                ) : !activityData?.activities || activityData.activities.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-secondary-500 dark:text-secondary-400 text-sm">No recent activities found</p>
+                  </div>
+                ) : (
+                  <ActivityTimeline activities={activityData.activities} />
+                )}
               </CardContent>
             </Card>
           </div>
@@ -301,13 +304,6 @@ function DashboardContent() {
           </div>
         </div>
       </main>
-
-      {/* Document Content Modal */}
-      <DocumentContentModal
-        document={selectedDocument}
-        isOpen={!!selectedDocument}
-        onClose={() => setSelectedDocument(null)}
-      />
 
       {/* Capabilities Modal */}
       <CapabilitiesModal

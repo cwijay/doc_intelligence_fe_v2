@@ -96,8 +96,8 @@ export const API_ENDPOINTS = {
 // =============================================================================
 
 export const TIMEOUTS = {
-  /** AI API operations (2 minutes) */
-  AI_API: 120000,
+  /** AI API operations (5 minutes) - increased for LLM operations */
+  AI_API: 300000,
   /** Authentication operations (2 minutes) */
   AUTH_API: 120000,
   /** Excel chat operations (10 minutes) */
@@ -290,6 +290,8 @@ export const CONTENT_LIMITS = {
 export const AUTH_CONFIG = {
   /** Token refresh buffer time (1 minute before expiry) */
   TOKEN_REFRESH_BUFFER: 1 * 60 * 1000,
+  /** Session expiration check interval (5 minutes) */
+  SESSION_CHECK_INTERVAL: 5 * 60 * 1000,
   /** Default session hours */
   DEFAULT_SESSION_HOURS: 12,
 } as const;
@@ -301,4 +303,26 @@ export const AUTH_CONFIG = {
 export const RAG_CONFIG = {
   /** Default max results for RAG search */
   DEFAULT_MAX_RESULTS: 10,
+} as const;
+
+// =============================================================================
+// UI TIMING & DELAYS
+// =============================================================================
+
+export const UI_TIMING = {
+  /** Delay before focusing input elements (ms) */
+  INPUT_FOCUS_DELAY: 100,
+  /** Microtask delay for event listener registration (ms) */
+  MICROTASK_DELAY: 0,
+} as const;
+
+// =============================================================================
+// POPOVER CONFIGURATION
+// =============================================================================
+
+export const POPOVER_CONFIG = {
+  /** Estimated height for position calculations (px) */
+  HEIGHT_ESTIMATE: 300,
+  /** Offset from anchor element (px) */
+  OFFSET: 8,
 } as const;

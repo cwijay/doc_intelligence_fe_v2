@@ -7,16 +7,15 @@ import {
   ChevronLeftIcon,
 } from '@heroicons/react/24/outline';
 import Navbar from '@/components/layout/Navbar';
-import { useAuth } from '@/hooks/useAuth';
+import { UsageDashboard } from './UsageDashboard';
 
 export default function UsagePage() {
-  const { user } = useAuth();
-
+  console.log('📊 UsagePage: Component rendering');
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Breadcrumb Navigation */}
           <nav className="flex items-center space-x-2 text-sm text-secondary-600 dark:text-secondary-400 mb-6">
             <Link
@@ -34,22 +33,15 @@ export default function UsagePage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-secondary-900 dark:text-secondary-100 flex items-center space-x-3">
               <ChartPieIcon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
-              <span>Usage Summary</span>
+              <span>Usage & Billing</span>
             </h1>
             <p className="text-secondary-600 dark:text-secondary-400 mt-2">
-              View your API usage and subscription details
+              Monitor your API usage, quotas, and subscription details
             </p>
           </div>
 
-          {/* Simple content */}
-          <div className="bg-white dark:bg-secondary-800 rounded-lg shadow p-6">
-            <p className="text-secondary-700 dark:text-secondary-300">
-              Welcome, {user?.full_name || 'User'}! Your organization ID is: {user?.org_id || 'N/A'}
-            </p>
-            <p className="text-secondary-500 dark:text-secondary-400 mt-2 text-sm">
-              Usage data will be displayed here.
-            </p>
-          </div>
+          {/* Usage Dashboard */}
+          <UsageDashboard />
         </div>
       </div>
     </div>

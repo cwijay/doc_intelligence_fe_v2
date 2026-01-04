@@ -24,8 +24,10 @@ export default function AuthGuard({
     isAuthenticated,
     isLoading,
     hasUser: !!user,
+    userOrgName: user?.org_name,
     isSessionExpired: isSessionExpired(),
     fallbackPath,
+    pathname: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
     timestamp: new Date().toISOString()
   });
 

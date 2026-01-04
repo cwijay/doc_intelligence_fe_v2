@@ -4,6 +4,7 @@
  * Document AI Hooks Module
  *
  * Composed from focused sub-hooks for better maintainability:
+ * - useAIGeneration: Generic hook for AI content generation
  * - useSummaryGeneration: Summary generation and management
  * - useFAQGeneration: FAQ generation and management
  * - useQuestionsGeneration: Questions generation and management
@@ -13,6 +14,10 @@ import { Document, DocumentSummary, DocumentFAQ, DocumentQuestions } from '@/typ
 import { useSummaryGeneration } from './useSummaryGeneration';
 import { useFAQGeneration } from './useFAQGeneration';
 import { useQuestionsGeneration } from './useQuestionsGeneration';
+
+// Re-export generic hook and types
+export { useAIGeneration } from './useAIGeneration';
+export type { AIFeatureType, AIGenerationConfig, AIGenerationState, AIGenerationActions, AIGenerationReturn } from './types';
 
 // Re-export sub-hooks for direct usage
 export { useSummaryGeneration } from './useSummaryGeneration';

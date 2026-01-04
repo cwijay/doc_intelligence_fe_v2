@@ -5,7 +5,7 @@
 
 import { AxiosResponse } from 'axios';
 import aiApi from './ai-base';
-import { authService } from '../auth';
+import { authService } from '@/lib/auth';
 
 // =============================================================================
 // Types

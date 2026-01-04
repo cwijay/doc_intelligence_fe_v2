@@ -55,6 +55,7 @@ export const clientConfig = {
 
 // Local proxy configuration
 const LOCAL_PROXY_BASE_PATH = '/api/backend';
+const AI_LOCAL_PROXY_BASE_PATH = '/api/ai';
 
 const shouldUseLocalProxy = (): boolean => {
   if (process.env.NEXT_PUBLIC_DISABLE_API_PROXY === 'true') {
@@ -91,6 +92,17 @@ export const getBrowserApiOrigin = (): string => {
 
 export const isUsingLocalProxy = (): boolean => shouldUseLocalProxy();
 export const API_LOCAL_PROXY_PATH = LOCAL_PROXY_BASE_PATH;
+export const AI_API_LOCAL_PROXY_PATH = AI_LOCAL_PROXY_BASE_PATH;
+
+/**
+ * Get the AI API base URL, using local proxy in development
+ */
+export const getBrowserAiApiBaseUrl = (): string => {
+  if (shouldUseLocalProxy()) {
+    return AI_LOCAL_PROXY_BASE_PATH;
+  }
+  return clientConfig.aiApiBaseUrl;
+};
 
 // Server-side configuration (only accessible in server components and API routes)
 export const serverConfig = {

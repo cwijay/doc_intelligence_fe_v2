@@ -3,7 +3,7 @@
  * Uses the centralized client factory for consistent behavior
  */
 
-import { createApiClient, INGESTION_API_CONFIG, RAG_API_CONFIG } from '../client-factory';
+import { createApiClient, INGESTION_API_CONFIG, RAG_API_CONFIG } from '@/lib/api/client-factory';
 
 /**
  * Ingestion API client

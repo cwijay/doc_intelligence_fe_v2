@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Document, DocumentFAQ } from '@/types/api';
 import { faqApi } from '@/lib/api/ai-features';
-import { useAuth } from '@/hooks/useAuth';
-import { resolveFolderName } from './utils';
+import { useAIGeneration } from './useAIGeneration';
 import toast from 'react-hot-toast';
+
+export interface FAQOptions {
+  numFaqs?: number;
+  force?: boolean;
+}
 
 export interface FAQGenerationState {
   selectedDocument: Document | null;
@@ -25,120 +29,65 @@ export type FAQGenerationReturn = FAQGenerationState & FAQGenerationActions;
 
 /**
  * Hook for document FAQ generation
+ * Uses the generic useAIGeneration hook for common functionality
  */
 export function useFAQGeneration(): FAQGenerationReturn {
-  const { user } = useAuth();
-
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [data, setData] = useState<DocumentFAQ | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleFaq = useCallback(async (document: Document, quantity: number = 10) => {
-    if (!user?.org_name || !user?.org_id) {
-      toast.error('Organization information not available. Please log in again.');
-      return;
-    }
-
-    try {
-      setSelectedDocument(document);
-      setIsGenerating(true);
-      setIsModalOpen(true);
-      setData(null);
-
-      console.log('Starting FAQ generation for:', document.name);
-      toast.loading(`Generating ${quantity} FAQs for: ${document.name}`, { id: `faq-${document.id}` });
-
-      const folderName = await resolveFolderName(document, user.org_id);
-
-      const documentFAQ = await faqApi.generateAndConvert(
+  const {
+    selectedDocument,
+    data,
+    setData,
+    isModalOpen,
+    isGenerating,
+    handleGenerate,
+    handleModalClose,
+    handleRegenerate: baseRegenerate,
+  } = useAIGeneration<DocumentFAQ, FAQOptions>({
+    featureName: 'faq',
+    displayName: 'FAQ',
+    generateFn: async (document, orgName, folderName, options) => {
+      return faqApi.generateAndConvert(
         document,
-        user.org_name,
+        orgName,
         folderName,
-        quantity
-      );
-
-      setData(documentFAQ);
-      toast.success(
-        `${documentFAQ.count} FAQs generated${documentFAQ.cached ? ' (cached)' : ''}`,
-        { id: `faq-${document.id}` }
-      );
-      console.log('FAQ generated successfully for:', document.name);
-
-    } catch (error) {
-      console.error('FAQ operation failed:', error);
-
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate FAQ';
-
-      toast.error(`Failed to generate FAQ for ${document.name}: ${errorMessage}`, {
-        id: `faq-${document.id}`
-      });
-
-      setData(null);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [user]);
-
-  const handleModalClose = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedDocument(null);
-    setData(null);
-    setIsGenerating(false);
-  }, []);
-
-  const handleSave = useCallback(async (faqs: DocumentFAQ['faqs']) => {
-    if (!selectedDocument || !data) return;
-
-    setData({
-      ...data,
-      faqs,
-      updated_at: new Date().toISOString()
-    });
-    toast.success(`FAQ updated for: ${selectedDocument.name}`);
-  }, [selectedDocument, data]);
-
-  const handleRegenerate = useCallback(async (options?: { numFaqs?: number }) => {
-    if (!selectedDocument || !user?.org_name || !user?.org_id) return;
-
-    try {
-      setIsGenerating(true);
-      console.log('Regenerating FAQ for:', selectedDocument.name);
-      toast.loading(`Regenerating FAQ for: ${selectedDocument.name}`, {
-        id: `regen-faq-${selectedDocument.id}`
-      });
-
-      const folderName = await resolveFolderName(selectedDocument, user.org_id);
-
-      const documentFAQ = await faqApi.generateAndConvert(
-        selectedDocument,
-        user.org_name,
-        folderName,
-        options?.numFaqs || 5,
+        options?.numFaqs ?? 10,
         undefined,
-        true // force regeneration
+        options?.force ?? false
       );
+    },
+    formatSuccessMessage: (result, cached) =>
+      `${result.count} FAQs generated${cached ? ' (cached)' : ''}`,
+  });
 
-      setData(documentFAQ);
-      toast.success(
-        `${documentFAQ.count} FAQs regenerated`,
-        { id: `regen-faq-${selectedDocument.id}` }
-      );
-      console.log('FAQ regenerated successfully');
+  // Wrap handleGenerate to match existing API (quantity as second param)
+  const handleFaq = useCallback(
+    async (document: Document, quantity: number = 10) => {
+      await handleGenerate(document, { numFaqs: quantity });
+    },
+    [handleGenerate]
+  );
 
-    } catch (error) {
-      console.error('FAQ regeneration failed:', error);
+  // Wrap handleRegenerate to add force flag
+  const handleRegenerate = useCallback(
+    async (options?: { numFaqs?: number }) => {
+      await baseRegenerate({ numFaqs: options?.numFaqs ?? 5, force: true });
+    },
+    [baseRegenerate]
+  );
 
-      const errorMessage = error instanceof Error ? error.message : 'Failed to regenerate FAQ';
+  // Custom save handler for FAQ (updates faqs array)
+  const handleSave = useCallback(
+    async (faqs: DocumentFAQ['faqs']) => {
+      if (!selectedDocument || !data) return;
 
-      toast.error(`Failed to regenerate FAQ: ${errorMessage}`, {
-        id: `regen-faq-${selectedDocument.id}`
+      setData({
+        ...data,
+        faqs,
+        updated_at: new Date().toISOString()
       });
-      throw error;
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [selectedDocument, user]);
+      toast.success(`FAQ updated for: ${selectedDocument.name}`);
+    },
+    [selectedDocument, data, setData]
+  );
 
   return {
     selectedDocument,

@@ -4,7 +4,7 @@
  */
 
 import { AxiosResponse } from 'axios';
-import aiApi from '../ai-base';
+import aiApi from '@/lib/api/ai-base';
 import { API_ENDPOINTS, TIMEOUTS } from '@/lib/constants';
 import {
   AnalyzeFieldsRequest,
@@ -19,8 +19,7 @@ import {
   SaveExtractedDataResponse,
   FieldSelection,
 } from '@/types/extraction';
-import { validateParsedFilePath } from '../utils/path-utils';
-import { constructParsedFilePath } from '../utils/path-utils';
+import { validateParsedFilePath, constructParsedFilePath } from '@/lib/api/utils/path-utils';
 
 /**
  * Validate extraction inputs

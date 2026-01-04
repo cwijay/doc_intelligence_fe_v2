@@ -3,7 +3,7 @@
  * Reduces duplication while preserving type safety
  */
 
-import { constructParsedFilePath } from '../utils/path-utils';
+import { constructParsedFilePath } from '@/lib/api/utils/path-utils';
 
 /**
  * Validate document inputs for AI generation

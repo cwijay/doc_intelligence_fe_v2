@@ -11,7 +11,7 @@ import {
   FolderStats,
   FolderTree,
 } from '@/types/api';
-import { authService } from '../auth';
+import { authService } from '@/lib/auth';
 
 export const foldersApi = {
   list: async (orgId: string, filters?: FolderFilters): Promise<FolderList> => {

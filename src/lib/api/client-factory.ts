@@ -5,10 +5,10 @@
  */
 
 import axios, { AxiosInstance, AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import { authService } from '../auth';
-import { clientConfig } from '../config';
-import { HEADERS, TIMEOUTS } from '../constants';
-import { normalizeErrorMessage, createErrorMessage } from './utils/error-utils';
+import { authService } from '@/lib/auth';
+import { clientConfig, getBrowserAiApiBaseUrl } from '@/lib/config';
+import { HEADERS, TIMEOUTS } from '@/lib/constants';
+import { normalizeErrorMessage, createErrorMessage, isQuotaExceededError, formatQuotaExceededMessage } from './utils/error-utils';
 
 // =============================================================================
 // TYPES
@@ -47,6 +47,7 @@ export interface ApiClientOptions {
 const DEFAULT_ERROR_MESSAGES: Record<number, string> = {
   400: 'Bad request. Please check your input and try again.',
   401: 'Your session has expired. Please log in again.',
+  402: 'Usage quota exceeded. Please upgrade your plan to continue.',
   403: 'Access forbidden. You do not have permission to perform this action.',
   404: 'Resource not found. The requested item may have been deleted or moved.',
   409: 'Conflict. The resource already exists or conflicts with current state.',
@@ -177,15 +178,21 @@ function createResponseErrorHandler(config: ApiClientConfig) {
     let errorMessage = 'Unknown API error';
 
     if (error.response) {
-      // Try to extract message from response data
-      const normalizedMessage = normalizeErrorMessage(error.response.data);
-      if (normalizedMessage && normalizedMessage !== 'An unexpected error occurred') {
-        errorMessage = normalizedMessage;
+      const status = error.response.status;
+
+      // Handle 402 quota exceeded errors with user-friendly message
+      if (status === 402 && isQuotaExceededError(error)) {
+        errorMessage = formatQuotaExceededMessage(error.response.data);
       } else {
-        // Use status code based message
-        const status = error.response.status;
-        errorMessage = errorMessages[status] ||
-          `${config.serviceName} API error (${status}): ${error.response.statusText || 'Unknown error'}`;
+        // Try to extract message from response data
+        const normalizedMessage = normalizeErrorMessage(error.response.data);
+        if (normalizedMessage && normalizedMessage !== 'An unexpected error occurred') {
+          errorMessage = normalizedMessage;
+        } else {
+          // Use status code based message
+          errorMessage = errorMessages[status] ||
+            `${config.serviceName} API error (${status}): ${error.response.statusText || 'Unknown error'}`;
+        }
       }
     } else {
       // Network or other errors
@@ -264,15 +271,33 @@ export const MAIN_API_CONFIG: ApiClientConfig = {
 };
 
 /**
- * Configuration for the AI API client (port 8001)
+ * Get AI API config with browser-aware URL (uses proxy in development)
  * Note: AI API expects organization NAME in X-Organization-ID header, not UUID
+ */
+export const getAiApiConfig = (): ApiClientConfig => ({
+  baseURL: typeof window !== 'undefined' ? getBrowserAiApiBaseUrl() : clientConfig.aiApiBaseUrl,
+  timeout: TIMEOUTS.AI_API,
+  serviceName: 'AI',
+  includeOrgHeader: true,
+  useOrgName: true,  // AI API expects org_name, not org_id UUID
+  handleUnauthorized: false,  // AI API 401s should not trigger logout - Main API is auth source of truth
+  errorMessages: {
+    404: 'Document not found or not yet ingested.',
+    429: 'Rate limit exceeded. Please wait before trying again.',
+    500: 'AI service error. Please try again later.',
+  },
+});
+
+/**
+ * @deprecated Use getAiApiConfig() instead for proxy support
  */
 export const AI_API_CONFIG: ApiClientConfig = {
   baseURL: clientConfig.aiApiBaseUrl,
   timeout: TIMEOUTS.AI_API,
   serviceName: 'AI',
   includeOrgHeader: true,
-  useOrgName: true,  // AI API expects org_name, not org_id UUID
+  useOrgName: true,
+  handleUnauthorized: false,
   errorMessages: {
     404: 'Document not found or not yet ingested.',
     429: 'Rate limit exceeded. Please wait before trying again.',
@@ -290,6 +315,7 @@ export const INGESTION_API_CONFIG: ApiClientConfig = {
   serviceName: 'Ingestion',
   includeOrgHeader: true,
   useOrgName: true,  // AI API expects org_name, not org_id UUID
+  handleUnauthorized: false,  // Ingestion API 401s should not trigger logout
   errorMessages: {
     413: 'Document too large for ingestion.',
   },
@@ -305,4 +331,5 @@ export const RAG_API_CONFIG: ApiClientConfig = {
   serviceName: 'RAG',
   includeOrgHeader: true,
   useOrgName: true,  // AI API expects org_name, not org_id UUID
+  handleUnauthorized: false,  // RAG API 401s should not trigger logout
 };

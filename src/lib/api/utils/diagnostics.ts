@@ -2,8 +2,8 @@
  * Service diagnostics and health check utilities
  */
 
-import { clientConfig } from '../../config';
-import { authService } from '../../auth';
+import { clientConfig } from '@/lib/config';
+import { authService } from '@/lib/auth';
 
 export interface HealthCheckResult {
   healthy: boolean;

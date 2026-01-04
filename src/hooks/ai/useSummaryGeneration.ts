@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Document, DocumentSummary } from '@/types/api';
 import { summaryApi } from '@/lib/api/ai-features';
-import { useAuth } from '@/hooks/useAuth';
-import { resolveFolderName } from './utils';
+import { useAIGeneration } from './useAIGeneration';
 import toast from 'react-hot-toast';
+
+export interface SummaryOptions {
+  maxWords?: number;
+  force?: boolean;
+}
 
 export interface SummaryGenerationState {
   selectedDocument: Document | null;
@@ -25,120 +29,65 @@ export type SummaryGenerationReturn = SummaryGenerationState & SummaryGeneration
 
 /**
  * Hook for document summary generation
+ * Uses the generic useAIGeneration hook for common functionality
  */
 export function useSummaryGeneration(): SummaryGenerationReturn {
-  const { user } = useAuth();
-
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [data, setData] = useState<DocumentSummary | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleSummarize = useCallback(async (document: Document, maxWords: number = 500) => {
-    if (!user?.org_name || !user?.org_id) {
-      toast.error('Organization information not available. Please log in again.');
-      return;
-    }
-
-    try {
-      setSelectedDocument(document);
-      setIsGenerating(true);
-      setIsModalOpen(true);
-      setData(null);
-
-      console.log('Starting summarization for:', document.name);
-      toast.loading(`Generating summary for: ${document.name}`, { id: `summary-${document.id}` });
-
-      const folderName = await resolveFolderName(document, user.org_id);
-
-      const documentSummary = await summaryApi.generateAndConvert(
+  const {
+    selectedDocument,
+    data,
+    setData,
+    isModalOpen,
+    isGenerating,
+    handleGenerate,
+    handleModalClose,
+    handleRegenerate: baseRegenerate,
+  } = useAIGeneration<DocumentSummary, SummaryOptions>({
+    featureName: 'summary',
+    displayName: 'Summary',
+    generateFn: async (document, orgName, folderName, options) => {
+      return summaryApi.generateAndConvert(
         document,
-        user.org_name,
+        orgName,
         folderName,
-        maxWords
-      );
-
-      setData(documentSummary);
-      toast.success(
-        `Summary generated (${documentSummary.word_count} words${documentSummary.cached ? ', cached' : ''})`,
-        { id: `summary-${document.id}` }
-      );
-      console.log('Summary generated successfully for:', document.name);
-
-    } catch (error) {
-      console.error('Summary operation failed:', error);
-
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary';
-
-      toast.error(`Failed to generate summary for ${document.name}: ${errorMessage}`, {
-        id: `summary-${document.id}`
-      });
-
-      setData(null);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [user]);
-
-  const handleModalClose = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedDocument(null);
-    setData(null);
-    setIsGenerating(false);
-  }, []);
-
-  const handleSave = useCallback(async (editedContent: string) => {
-    if (!selectedDocument || !data) return;
-
-    setData({
-      ...data,
-      content: editedContent,
-      updated_at: new Date().toISOString()
-    });
-    toast.success(`Summary updated for: ${selectedDocument.name}`);
-  }, [selectedDocument, data]);
-
-  const handleRegenerate = useCallback(async (options?: { maxWords?: number }) => {
-    if (!selectedDocument || !user?.org_name || !user?.org_id) return;
-
-    try {
-      setIsGenerating(true);
-      console.log('Regenerating summary for:', selectedDocument.name);
-      toast.loading(`Regenerating summary for: ${selectedDocument.name}`, {
-        id: `regen-${selectedDocument.id}`
-      });
-
-      const folderName = await resolveFolderName(selectedDocument, user.org_id);
-
-      const documentSummary = await summaryApi.generateAndConvert(
-        selectedDocument,
-        user.org_name,
-        folderName,
-        options?.maxWords || 500,
+        options?.maxWords ?? 500,
         undefined,
-        true // force regeneration
+        options?.force ?? false
       );
+    },
+    formatSuccessMessage: (result, cached) =>
+      `Summary generated (${result.word_count} words${cached ? ', cached' : ''})`,
+  });
 
-      setData(documentSummary);
-      toast.success(
-        `Summary regenerated (${documentSummary.word_count} words)`,
-        { id: `regen-${selectedDocument.id}` }
-      );
-      console.log('Summary regenerated successfully');
+  // Wrap handleGenerate to match existing API (maxWords as second param)
+  const handleSummarize = useCallback(
+    async (document: Document, maxWords: number = 500) => {
+      await handleGenerate(document, { maxWords });
+    },
+    [handleGenerate]
+  );
 
-    } catch (error) {
-      console.error('Summary regeneration failed:', error);
+  // Wrap handleRegenerate to add force flag
+  const handleRegenerate = useCallback(
+    async (options?: { maxWords?: number }) => {
+      await baseRegenerate({ maxWords: options?.maxWords ?? 500, force: true });
+    },
+    [baseRegenerate]
+  );
 
-      const errorMessage = error instanceof Error ? error.message : 'Failed to regenerate summary';
+  // Custom save handler for summary (updates content string)
+  const handleSave = useCallback(
+    async (editedContent: string) => {
+      if (!selectedDocument || !data) return;
 
-      toast.error(`Failed to regenerate summary: ${errorMessage}`, {
-        id: `regen-${selectedDocument.id}`
+      setData({
+        ...data,
+        content: editedContent,
+        updated_at: new Date().toISOString()
       });
-      throw error;
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [selectedDocument, user]);
+      toast.success(`Summary updated for: ${selectedDocument.name}`);
+    },
+    [selectedDocument, data, setData]
+  );
 
   return {
     selectedDocument,

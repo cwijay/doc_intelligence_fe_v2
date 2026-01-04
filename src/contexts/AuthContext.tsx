@@ -11,6 +11,7 @@ import {
 } from '@/types/auth';
 import { UserRole } from '@/types/api';
 import { authService, formatAuthError } from '@/lib/auth';
+import { AUTH_CONFIG } from '@/lib/constants';
 
 type AuthAction =
   | { type: 'AUTH_START' }
@@ -40,6 +41,11 @@ const initialState: AuthState = {
 };
 
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
+  console.log('🔄 AuthReducer Action:', action.type, {
+    currentIsAuthenticated: state.isAuthenticated,
+    currentIsLoading: state.isLoading,
+    pathname: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
+  });
   switch (action.type) {
     case 'AUTH_START':
       return {
@@ -205,6 +211,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = useCallback(async (): Promise<void> => {
+    console.log('🚪 LOGOUT called! Stack trace:', new Error().stack);
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -340,8 +347,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
 
-    // Check every 5 minutes (reduced frequency to prevent aggressive logout)
-    const intervalId = setInterval(checkSessionExpiration, 5 * 60 * 1000);
+    // Check periodically (reduced frequency to prevent aggressive logout)
+    const intervalId = setInterval(checkSessionExpiration, AUTH_CONFIG.SESSION_CHECK_INTERVAL);
 
     return () => {
       clearInterval(intervalId);
@@ -352,14 +359,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const restoreSession = () => {
       console.log('🔍 Checking for existing session on app load');
-      
-      if (authService.isAuthenticated()) {
+
+      const isAuth = authService.isAuthenticated();
+      console.log('🔍 authService.isAuthenticated():', isAuth);
+
+      if (isAuth) {
         const user = authService.getUser();
         const accessToken = authService.getAccessToken();
         const refreshToken = authService.getRefreshToken();
         const accessTokenExpiry = authService.getAccessTokenExpiry();
         const refreshTokenExpiry = authService.getRefreshTokenExpiry();
-        
+
+        console.log('🔍 Session data check:', {
+          hasUser: !!user,
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          hasAccessExpiry: !!accessTokenExpiry,
+          hasRefreshExpiry: !!refreshTokenExpiry,
+          userEmail: user?.email,
+          userOrgName: user?.org_name,
+        });
+
         if (user && accessToken && refreshToken && accessTokenExpiry && refreshTokenExpiry) {
           console.log('🔍 Restoring valid session for:', user.email);
           dispatch({
@@ -373,15 +393,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             },
           });
           return;
+        } else {
+          console.log('🔍 Session data incomplete, not restoring');
         }
       }
-      
+
       // No valid session found, mark as initialized and stop loading
       console.log('🔍 No valid session found, stopping loading state');
       dispatch({ type: 'SET_LOADING', payload: false });
       dispatch({ type: 'SET_INITIALIZED', payload: true });
     };
-    
+
     restoreSession();
   }, []);
 

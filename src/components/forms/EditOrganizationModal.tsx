@@ -5,8 +5,9 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { BuildingOfficeIcon } from '@heroicons/react/24/outline';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import FormModalHeader from '@/components/ui/FormModalHeader';
+import FormModalFooter from '@/components/ui/FormModalFooter';
 import { useUpdateOrganization } from '@/hooks/useOrganizations';
 import { OrganizationUpdateRequest, PlanType, Organization } from '@/types/api';
 
@@ -89,15 +90,11 @@ export default function EditOrganizationModal({
       size="md"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="flex items-center space-x-3 p-4 bg-primary-50 rounded-lg">
-          <div className="p-2 bg-primary-100 rounded-lg">
-            <BuildingOfficeIcon className="w-6 h-6 text-primary-600" />
-          </div>
-          <div>
-            <h4 className="font-medium text-primary-900">Update Organization</h4>
-            <p className="text-sm text-primary-700">Modify organization details and settings.</p>
-          </div>
-        </div>
+        <FormModalHeader
+          icon={<BuildingOfficeIcon className="w-6 h-6" />}
+          title="Update Organization"
+          description="Modify organization details and settings."
+        />
 
         <div className="space-y-4">
           <Input
@@ -157,24 +154,12 @@ export default function EditOrganizationModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-end space-x-3 pt-6 border-t border-secondary-200">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={isSubmitting}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Updating...' : 'Update Organization'}
-          </Button>
-        </div>
+        <FormModalFooter
+          onCancel={handleClose}
+          isSubmitting={isSubmitting}
+          submitText="Update Organization"
+          submittingText="Updating..."
+        />
       </form>
     </Modal>
   );

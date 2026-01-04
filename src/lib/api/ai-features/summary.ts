@@ -1,5 +1,5 @@
 import { AxiosResponse } from 'axios';
-import aiApi from '../ai-base';
+import aiApi from '@/lib/api/ai-base';
 import {
   Document,
   DocumentSummary,
@@ -15,6 +15,7 @@ import {
   logGenerationError,
   buildBaseRequest
 } from './helpers';
+import { handleGenerateAndConvertResponse } from './errors';
 
 export const summaryApi = {
   /**
@@ -154,30 +155,12 @@ export const summaryApi = {
       fullResponse: response
     });
 
-    // Check for explicit error first
-    if (response.error) {
-      // Provide more helpful error messages for common issues
-      const errorMsg = response.error;
-      if (errorMsg.toLowerCase().includes('not found') || errorMsg.toLowerCase().includes('does not exist')) {
-        throw new Error(`Document not found. Please ensure the document has been parsed before generating a summary.`);
-      }
-      if (errorMsg.toLowerCase().includes('failed to generate')) {
-        throw new Error(`${errorMsg}. This may happen if the document hasn't been parsed yet. Please parse the document first.`);
-      }
-      throw new Error(errorMsg);
-    }
-
-    // Consider successful if we have summary/message content, even if success field is missing/false
-    // Backend may return content in either 'summary' or 'message' field
-    const hasSummaryContent = !!(response.summary || response.message);
-    if (!response.success && !hasSummaryContent) {
-      throw new Error('Failed to generate summary: No summary content received');
-    }
-
-    // Warn if success is false but we have data
-    if (!response.success && hasSummaryContent) {
-      console.warn('⚠️ Summary response has success=false but contains content, proceeding anyway');
-    }
+    // Use shared error handling
+    handleGenerateAndConvertResponse(
+      response,
+      (r) => !!(r.summary || r.message),
+      'Summary'
+    );
 
     return summaryApi.convertToDocumentSummary(response, document.id);
   }
