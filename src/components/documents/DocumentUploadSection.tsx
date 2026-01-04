@@ -11,7 +11,12 @@ import { useDocumentUpload } from '@/hooks/useDocumentUpload';
 import { useBulkUpload, useCancelBulkJob, useRetryBulkJob } from '@/hooks/useBulkUpload';
 import { useAuth } from '@/hooks/useAuth';
 import { Folder } from '@/types/api';
-import { DocumentArrowUpIcon, ArrowLeftIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import {
+  InformationCircleIcon,
+  PencilSquareIcon,
+  DocumentDuplicateIcon,
+  CheckIcon
+} from '@heroicons/react/24/outline';
 
 interface DocumentUploadSectionProps {
   isVisible: boolean;
@@ -128,47 +133,142 @@ export default function DocumentUploadSection({
       >
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle>
-                  {isBulkMode ? 'Bulk Upload Documents' : 'Upload New Documents'}
-                </CardTitle>
-                <CardDescription>
-                  {isBulkMode
-                    ? 'Upload multiple files at once for batch processing with AI-powered analysis'
-                    : 'Upload your business documents, spreadsheets (Excel/CSV), and files for AI-powered analysis and data extraction'
-                  }
-                </CardDescription>
-              </div>
-              {/* Toggle between single and bulk mode */}
-              {!isBulkMode && !jobStatus && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    console.log('🔘 Bulk Upload button clicked, setting isBulkMode to true');
-                    setIsBulkMode(true);
-                  }}
-                  className="flex items-center space-x-2"
-                >
-                  <DocumentArrowUpIcon className="w-4 h-4" />
-                  <span>Bulk Upload</span>
-                </Button>
-              )}
-              {isBulkMode && !jobStatus && !isBulkUploading && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsBulkMode(false)}
-                  className="flex items-center space-x-2"
-                >
-                  <ArrowLeftIcon className="w-4 h-4" />
-                  <span>Back to Single Upload</span>
-                </Button>
-              )}
-            </div>
+            <CardTitle>Upload New Documents</CardTitle>
+            <CardDescription>
+              Choose an upload mode below, then drag and drop your files for AI-powered analysis
+            </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Upload Mode Selection Cards */}
+            {!jobStatus && !isBulkUploading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {/* Single Document Card */}
+                <button
+                  type="button"
+                  onClick={() => setIsBulkMode(false)}
+                  className={`relative p-5 rounded-xl border-2 text-left transition-all duration-200 ${
+                    !isBulkMode
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-md'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'
+                  }`}
+                >
+                  {/* Selected indicator */}
+                  {!isBulkMode && (
+                    <div className="absolute top-3 right-3 flex items-center space-x-1 bg-primary-500 text-white text-xs font-medium px-2 py-1 rounded-full">
+                      <CheckIcon className="w-3 h-3" />
+                      <span>Selected</span>
+                    </div>
+                  )}
+
+                  {/* Icon */}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
+                    !isBulkMode
+                      ? 'bg-primary-100 dark:bg-primary-800'
+                      : 'bg-gray-100 dark:bg-gray-800'
+                  }`}>
+                    <PencilSquareIcon className={`w-6 h-6 ${
+                      !isBulkMode
+                        ? 'text-primary-600 dark:text-primary-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`} />
+                  </div>
+
+                  {/* Title */}
+                  <h3 className={`font-semibold text-lg mb-2 ${
+                    !isBulkMode
+                      ? 'text-primary-900 dark:text-primary-100'
+                      : 'text-gray-900 dark:text-gray-100'
+                  }`}>
+                    Single Document
+                  </h3>
+
+                  {/* Benefits */}
+                  <ul className={`space-y-1.5 text-sm ${
+                    !isBulkMode
+                      ? 'text-primary-700 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}>
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>Best for <strong>handwritten</strong> content</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>Extract data to <strong>tables/Excel</strong></span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>Advanced OCR processing</span>
+                    </li>
+                  </ul>
+                </button>
+
+                {/* Bulk Upload Card */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('🔘 Bulk Upload card clicked, setting isBulkMode to true');
+                    setIsBulkMode(true);
+                  }}
+                  className={`relative p-5 rounded-xl border-2 text-left transition-all duration-200 ${
+                    isBulkMode
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-md'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'
+                  }`}
+                >
+                  {/* Selected indicator */}
+                  {isBulkMode && (
+                    <div className="absolute top-3 right-3 flex items-center space-x-1 bg-primary-500 text-white text-xs font-medium px-2 py-1 rounded-full">
+                      <CheckIcon className="w-3 h-3" />
+                      <span>Selected</span>
+                    </div>
+                  )}
+
+                  {/* Icon */}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
+                    isBulkMode
+                      ? 'bg-primary-100 dark:bg-primary-800'
+                      : 'bg-gray-100 dark:bg-gray-800'
+                  }`}>
+                    <DocumentDuplicateIcon className={`w-6 h-6 ${
+                      isBulkMode
+                        ? 'text-primary-600 dark:text-primary-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`} />
+                  </div>
+
+                  {/* Title */}
+                  <h3 className={`font-semibold text-lg mb-2 ${
+                    isBulkMode
+                      ? 'text-primary-900 dark:text-primary-100'
+                      : 'text-gray-900 dark:text-gray-100'
+                  }`}>
+                    Bulk Upload
+                  </h3>
+
+                  {/* Benefits */}
+                  <ul className={`space-y-1.5 text-sm ${
+                    isBulkMode
+                      ? 'text-primary-700 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-400'
+                  }`}>
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>Upload up to <strong>10 documents</strong> at once</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>For <strong>typed/readable</strong> documents</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>Batch AI processing (summary, FAQs, Q&A)</span>
+                    </li>
+                  </ul>
+                </button>
+              </div>
+            )}
+
             {/* Bulk mode instructions */}
             {isBulkMode && !jobStatus && !isBulkUploading && (
               <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
