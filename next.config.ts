@@ -17,9 +17,6 @@ const nextConfig: NextConfig = {
       'react-hot-toast'
     ],
   },
-  // Turbopack configuration (default in Next.js 16)
-  turbopack: {},
-
   // Headers configuration - minimal headers to avoid hydration issues
   async headers() {
     return [

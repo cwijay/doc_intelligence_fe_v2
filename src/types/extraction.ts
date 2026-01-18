@@ -137,6 +137,24 @@ export interface TemplateResponse {
   error?: string;
 }
 
+/**
+ * A field parsed from a template schema for preview display
+ */
+export interface TemplateField {
+  field_name: string;
+  display_name: string;
+  data_type: string;
+  location?: 'header' | 'body' | 'footer' | 'line_item';
+  required?: boolean;
+}
+
+/**
+ * Extended template response with parsed fields
+ */
+export interface TemplateDetailResponse extends TemplateResponse {
+  fields?: TemplateField[];
+}
+
 // =============================================================================
 // Save Extracted Data
 // =============================================================================

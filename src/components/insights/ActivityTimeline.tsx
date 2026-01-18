@@ -174,35 +174,35 @@ function getActivityIcon(iconOrType: string): React.ReactNode {
   return iconMap[iconOrType] || <DocumentTextIcon className={iconClass} />;
 }
 
-// Helper to get icon background color
+// Helper to get icon background color - using brand colors for consistency with logo
 function getIconBackground(colorOrType: string): string {
   const colorMap: Record<string, string> = {
-    // Color names from API
+    // Color names from API - mapped to brand colors for consistency
     'green': 'bg-green-500',
-    'blue': 'bg-blue-500',
-    'purple': 'bg-purple-500',
-    'yellow': 'bg-yellow-500',
-    'orange': 'bg-orange-500',
+    'blue': 'bg-brand-cyan-500',
+    'purple': 'bg-brand-navy-500',
+    'yellow': 'bg-brand-coral-500',
+    'orange': 'bg-brand-coral-500',
     'red': 'bg-red-500',
-    'gray': 'bg-secondary-500',
+    'gray': 'bg-brand-cyan-500',
 
-    // Event types fallback
-    'document_loaded': 'bg-blue-500',
-    'parse_started': 'bg-yellow-500',
+    // Event types fallback - using brand colors for consistency
+    'document_loaded': 'bg-brand-cyan-500',
+    'parse_started': 'bg-brand-coral-500',
     'parse_completed': 'bg-green-500',
-    'summary_generated': 'bg-purple-500',
-    'faqs_generated': 'bg-purple-500',
-    'questions_generated': 'bg-purple-500',
-    'content_generated': 'bg-purple-500',
-    'generation_started': 'bg-yellow-500',
+    'summary_generated': 'bg-brand-navy-500',
+    'faqs_generated': 'bg-brand-navy-500',
+    'questions_generated': 'bg-brand-navy-500',
+    'content_generated': 'bg-brand-navy-500',
+    'generation_started': 'bg-brand-coral-500',
     'generation_completed': 'bg-green-500',
-    'generation_cache_hit': 'bg-blue-500',
-    'cache_hit': 'bg-blue-500',
-    'document_agent_query': 'bg-blue-500',
+    'generation_cache_hit': 'bg-brand-cyan-500',
+    'cache_hit': 'bg-brand-cyan-500',
+    'document_agent_query': 'bg-brand-cyan-500',
     'error': 'bg-red-500',
   };
 
-  return colorMap[colorOrType] || 'bg-secondary-500';
+  return colorMap[colorOrType] || 'bg-brand-cyan-500';
 }
 
 // Helper to get status badge color

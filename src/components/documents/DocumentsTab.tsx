@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   MagnifyingGlassIcon,
@@ -11,6 +12,7 @@ import {
   XMarkIcon,
   Squares2X2Icon,
   ListBulletIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
@@ -18,21 +20,22 @@ import Button from '@/components/ui/Button';
 import DocumentList from '@/components/documents/DocumentList';
 import DocumentListCompact from '@/components/documents/DocumentListCompact';
 import DocumentTableView from '@/components/documents/DocumentTableView';
-import DocumentAIContentModal from '@/components/documents/ai-modal';
-import DocumentParseModal from '@/components/documents/DocumentParseModal';
+import DocumentCardView from '@/components/documents/DocumentCardView';
+import DocumentRenameModal from '@/components/documents/DocumentRenameModal';
 import { ExtractionModal } from '@/components/documents/extraction/ExtractionModal';
-import ExcelChatModal from '@/components/documents/ExcelChatModal';
-import RagChatModal from '@/components/documents/RagChatModal';
+import { TemplateSelectionModal } from '@/components/documents/extraction/TemplateSelectionModal';
 import { useFolders } from '@/hooks/useFolders';
-import { useDocuments } from '@/hooks/useAllDocuments';
-import { useDocumentActions } from '@/hooks/useDocumentActions';
+import { useDocuments as useAllDocumentsData } from '@/hooks/useAllDocuments';
+import { useDocuments as useDocumentOperations } from '@/hooks/useDocuments';
+import { useDocumentActions, type DocumentActionsReturn } from '@/hooks/useDocumentActions';
 import { useDocumentAI } from '@/hooks/ai';
-import { useExcelChat } from '@/hooks/useExcelChat';
-import { useRagChat } from '@/hooks/rag';
-import { useExtraction } from '@/hooks/extraction';
+import { useExtraction, useTemplateSelection } from '@/hooks/extraction';
 import { useAuth } from '@/hooks/useAuth';
 import { Folder, Document } from '@/types/api';
 import toast from 'react-hot-toast';
+import { storeAIContentContext } from '@/hooks/ai/useAIContentPage';
+import { storeChatContext } from '@/hooks/rag/useChatPage';
+import { storeExcelChatContext } from '@/hooks/useExcelChatPage';
 
 interface DocumentsTabProps {
   searchTerm: string;
@@ -44,6 +47,8 @@ interface DocumentsTabProps {
   multiSelectedDocumentIds?: Set<string>;
   onSelectAllDocuments?: (documentIds: string[]) => void;
   clearDocumentMultiSelection?: () => void;
+  // Shared document actions from parent (for parse panel integration)
+  documentActions?: DocumentActionsReturn;
 }
 
 export default function DocumentsTab({
@@ -55,36 +60,90 @@ export default function DocumentsTab({
   multiSelectedDocumentIds,
   onSelectAllDocuments,
   clearDocumentMultiSelection,
+  documentActions: documentActionsProp,
 }: DocumentsTabProps) {
+  const router = useRouter();
   const { user } = useAuth();
   const organizationId = user?.org_id || '';
-  
+
   // Selection state for multi-select
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
 
-  // View mode state - toggle between modern and legacy views
-  const [useModernView, setUseModernView] = useState(true);
+  // View mode state - 'table', 'cards' (default), or 'classic'
+  type ViewMode = 'table' | 'cards' | 'classic';
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
-  // State to track if we should reopen parse modal after extraction completes
-  const [reopenParseModalAfterExtraction, setReopenParseModalAfterExtraction] = useState(false);
+  // Note: reopenParseModalAfterExtraction state removed - parse is now a full page
 
-  // Document actions from custom hook
-  const documentActions = useDocumentActions();
+  // Rename modal state
+  const [documentToRename, setDocumentToRename] = useState<Document | null>(null);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renamingDocuments, setRenamingDocuments] = useState<Set<string>>(new Set());
+
+  // Document actions - use prop if provided, otherwise create local instance (for backward compatibility)
+  const localDocumentActions = useDocumentActions();
+  const documentActions = documentActionsProp || localDocumentActions;
   
   // AI features from custom hook
   const documentAI = useDocumentAI();
-  
-  // Excel chat functionality
-  const excelChat = useExcelChat();
-  
-  // RAG chat functionality
-  const ragChat = useRagChat();
 
   // Extraction functionality
   const extraction = useExtraction();
 
+  // Template selection for extraction (pre-step)
+  const templateSelection = useTemplateSelection();
+
   // Fetch folders data to get folder name for display
   const { data: foldersData } = useFolders(organizationId, undefined, !!organizationId);
+
+  // =============================================================================
+  // Navigation handlers for full-page AI views
+  // =============================================================================
+
+  // Helper to get folder name for a document
+  const getFolderNameForDocument = useCallback((document: Document): string => {
+    if (document.folder_name) return document.folder_name;
+    if (!document.folder_id || !foldersData?.folders) return 'Documents';
+    const folder = foldersData.folders.find((f: Folder) => f.id === document.folder_id);
+    return folder?.name || 'Documents';
+  }, [foldersData?.folders]);
+
+  // Navigate to Summary page
+  const handleNavigateToSummary = useCallback((document: Document) => {
+    const folderName = getFolderNameForDocument(document);
+    storeAIContentContext(document.id, 'summary', document, folderName);
+    router.push(`/documents/${document.id}/summary?from=documents`);
+  }, [getFolderNameForDocument, router]);
+
+  // Navigate to FAQ page
+  const handleNavigateToFAQ = useCallback((document: Document) => {
+    const folderName = getFolderNameForDocument(document);
+    storeAIContentContext(document.id, 'faq', document, folderName);
+    router.push(`/documents/${document.id}/faq?from=documents`);
+  }, [getFolderNameForDocument, router]);
+
+  // Navigate to Questions page
+  const handleNavigateToQuestions = useCallback((document: Document) => {
+    const folderName = getFolderNameForDocument(document);
+    storeAIContentContext(document.id, 'questions', document, folderName);
+    router.push(`/documents/${document.id}/questions?from=documents`);
+  }, [getFolderNameForDocument, router]);
+
+  // Navigate to Chat page
+  const handleNavigateToChat = useCallback((document: Document) => {
+    const folderName = getFolderNameForDocument(document);
+    storeChatContext(document.id, document, folderName);
+    router.push(`/documents/${document.id}/chat?from=documents`);
+  }, [getFolderNameForDocument, router]);
+
+  // Navigate to Excel Chat page
+  const handleNavigateToExcelChat = useCallback((documents: Document[]) => {
+    if (documents.length === 0) return;
+    const folderName = getFolderNameForDocument(documents[0]);
+    // Use the first document's ID for the route
+    storeExcelChatContext(documents[0].id, documents, folderName);
+    router.push(`/documents/${documents[0].id}/excel-chat?from=documents`);
+  }, [getFolderNameForDocument, router]);
 
   // Look up folder name from already-fetched folders list (avoids HTTP caching issues)
   const selectedFolderName = useMemo(() => {
@@ -99,12 +158,21 @@ export default function DocumentsTab({
   const {
     data: documentsData,
     isLoading: documentsLoading,
-    error: documentsError
-  } = useDocuments(
+    error: documentsError,
+    refetch: refetchDocuments
+  } = useAllDocumentsData(
     organizationId,
     selectedFolderName || null,  // Pass folder name if selected, otherwise null for all docs
     !!organizationId
   );
+
+  // Document operations (rename, etc.)
+  const {
+    renaming,
+    renameError,
+    renameDocument,
+    clearRenameError
+  } = useDocumentOperations();
 
   // Enhanced debug logging for documents data
   console.group('📊 DocumentsTab Debug Information');
@@ -119,9 +187,9 @@ export default function DocumentsTab({
   });
   console.log('Component State:', {
     selectedViewFolder,
-    viewMode: selectedViewFolder ? 'folder-specific' : 'all-documents',
+    folderViewMode: selectedViewFolder ? 'folder-specific' : 'all-documents',
     searchTerm,
-    useModernView
+    viewMode
   });
   // Get selected folder details - moved before console.log to fix temporal dead zone
   const selectedFolder = useMemo(() => {
@@ -220,31 +288,105 @@ export default function DocumentsTab({
     }
   }, [selectedDocuments, filteredDocuments, documentActions]);
 
-  // Handle single document analysis (for spreadsheets)
+  // Handle single document analysis (for spreadsheets) - navigates to Excel chat page
   const handleAnalyse = useCallback((document: Document) => {
     console.log('📊 DocumentsTab: handleAnalyse called for:', document.name);
-    excelChat.openChat([document]);
-  }, [excelChat]);
+    handleNavigateToExcelChat([document]);
+  }, [handleNavigateToExcelChat]);
 
-  // Handle extraction complete - reopen parse modal for mandatory indexing
+  // Handle rename - open modal
+  const handleRenameClick = useCallback((document: Document) => {
+    console.log('📝 DocumentsTab: handleRenameClick called for:', document.name);
+    setDocumentToRename(document);
+    setIsRenameModalOpen(true);
+    clearRenameError();
+  }, [clearRenameError]);
+
+  // Handle rename confirmation
+  const handleRenameConfirm = useCallback(async (newName: string) => {
+    if (!documentToRename) return;
+
+    console.log('📝 DocumentsTab: handleRenameConfirm called:', {
+      documentId: documentToRename.id,
+      oldName: documentToRename.name,
+      newName
+    });
+
+    // Track renaming state
+    setRenamingDocuments(prev => new Set(prev).add(documentToRename.id));
+
+    const result = await renameDocument(documentToRename.id, newName);
+
+    setRenamingDocuments(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(documentToRename.id);
+      return newSet;
+    });
+
+    if (result.success) {
+      toast.success(`Document renamed to "${newName}"`);
+      setIsRenameModalOpen(false);
+      setDocumentToRename(null);
+      // Refetch documents to update the list
+      refetchDocuments();
+    } else {
+      toast.error(result.error || 'Failed to rename document');
+    }
+  }, [documentToRename, renameDocument, refetchDocuments]);
+
+  // Handle rename modal close
+  const handleRenameModalClose = useCallback(() => {
+    if (!renaming) {
+      setIsRenameModalOpen(false);
+      setDocumentToRename(null);
+      clearRenameError();
+    }
+  }, [renaming, clearRenameError]);
+
+  // Handle extraction complete - refresh documents list
   const handleExtractionComplete = useCallback(() => {
-    console.log('📋 DocumentsTab: Extraction completed, reopening parse modal');
-    setReopenParseModalAfterExtraction(true);
+    console.log('📋 DocumentsTab: Extraction completed');
+    // Parse is now a full page, no need to reopen modal
   }, []);
 
-  // Effect to reopen parse modal after extraction
+  // Note: Effect to reopen parse modal removed - parse is now a full page
+
+  // Effect to handle template selection completion
   useEffect(() => {
-    if (reopenParseModalAfterExtraction && !extraction.isModalOpen) {
-      // Get the document and stored parse data from extraction state (preserved by completeExtraction)
-      const doc = extraction.selectedDocument;
-      const storedData = extraction.storedParseData;
-      if (doc && storedData) {
-        // Reopen the parse modal with the stored parse data
-        documentActions.openParseModal(doc, storedData);
+    if (templateSelection.shouldProceedWithTemplate) {
+      // User selected a template - start extraction with template (skip analyze)
+      if (templateSelection.document && templateSelection.selectedTemplate && templateSelection.schema) {
+        extraction.startExtractionWithTemplate(
+          templateSelection.document,
+          templateSelection.selectedTemplate,
+          templateSelection.schema,
+          templateSelection.parseData || undefined
+        );
       }
-      setReopenParseModalAfterExtraction(false);
+      templateSelection.resetProceedFlags();
+    } else if (templateSelection.shouldProceedWithAnalyze) {
+      // User chose to analyze new document - start normal extraction flow
+      if (templateSelection.document) {
+        extraction.startExtraction(
+          templateSelection.document,
+          templateSelection.parseData || undefined
+        );
+      }
+      templateSelection.resetProceedFlags();
     }
-  }, [reopenParseModalAfterExtraction, extraction.isModalOpen, extraction.selectedDocument, extraction.storedParseData, documentActions]);
+  }, [
+    templateSelection.shouldProceedWithTemplate,
+    templateSelection.shouldProceedWithAnalyze,
+    templateSelection.document,
+    templateSelection.selectedTemplate,
+    templateSelection.schema,
+    templateSelection.parseData,
+    templateSelection.resetProceedFlags,
+    extraction,
+  ]);
+
+  // Note: handleExtractFromParse removed - extraction is now handled on the parse page
+  // The parse page (/documents/[documentId]/parse) has its own extraction modal integration
 
   // Handle bulk chat
   const handleBulkChat = useCallback(() => {
@@ -253,34 +395,38 @@ export default function DocumentsTab({
     const selectedDocs = Array.from(selectedDocuments)
       .map(docId => filteredDocuments.find((d: Document) => d.id === docId))
       .filter((doc): doc is Document => doc !== undefined);
-    
+
     if (selectedDocs.length === 0) return;
-    
+
     // Separate spreadsheet files from regular documents
     const spreadsheetDocs = selectedDocs.filter(doc => {
       const isSpreadsheet = doc.type && ['xlsx', 'xls', 'csv'].includes(doc.type.toLowerCase());
       return isSpreadsheet;
     });
-    
+
     const regularDocs = selectedDocs.filter(doc => {
       const isSpreadsheet = doc.type && ['xlsx', 'xls', 'csv'].includes(doc.type.toLowerCase());
       return !isSpreadsheet;
     });
-    
+
     // Handle based on document types
     if (spreadsheetDocs.length > 0 && regularDocs.length === 0) {
-      // All spreadsheets - use Excel chat
-      excelChat.openChat(spreadsheetDocs);
+      // All spreadsheets - navigate to Excel chat page
+      handleNavigateToExcelChat(spreadsheetDocs);
     } else if (regularDocs.length > 0 && spreadsheetDocs.length === 0) {
-      // All regular documents - use RAG chat with multiple docs
-      ragChat.openMultiChat(regularDocs);
+      // All regular documents - navigate to chat page for first document
+      // Note: For multi-document chat, we navigate to first document's chat page
+      if (regularDocs.length > 1) {
+        toast('Opening chat for first selected document. Multi-document chat coming soon!', { icon: 'i' });
+      }
+      handleNavigateToChat(regularDocs[0]);
     } else if (spreadsheetDocs.length > 0 && regularDocs.length > 0) {
       // Mixed types - show selection dialog or default to regular docs
       toast.error('Mixed document types selected. Please select either spreadsheets OR regular documents for chat.');
     } else {
       toast.error('No valid documents selected for chat.');
     }
-  }, [selectedDocuments, filteredDocuments, documentActions, excelChat, ragChat]);
+  }, [selectedDocuments, filteredDocuments, handleNavigateToExcelChat, handleNavigateToChat]);
   
   // Clear selection when folder changes
   useEffect(() => {
@@ -307,58 +453,39 @@ export default function DocumentsTab({
       hasDocumentActions: !!documentActions,
       hasSetOnExcelChat: !!documentActions?.setOnExcelChat,
       hasSetOnRagChat: !!documentActions?.setOnRagChat,
-      hasExcelChatOpenChat: !!excelChat?.openChat,
-      hasRagChatOpenChat: !!ragChat?.openChat,
-      excelChatOpenChatType: typeof excelChat?.openChat,
-      ragChatOpenChatType: typeof ragChat?.openChat
     });
-    
+
     if (!documentActions?.setOnExcelChat) {
       console.error('🚨 DocumentsTab: documentActions.setOnExcelChat not available');
       return;
     }
-    
-    if (!excelChat?.openChat) {
-      console.error('🚨 DocumentsTab: excelChat.openChat not available');
-      return;
-    }
-    
-    if (!documentActions?.setOnRagChat) {
-      console.error('🚨 DocumentsTab: documentActions.setOnRagChat not available');
-      return;
-    }
-    
-    if (!ragChat?.openChat) {
-      console.error('🚨 DocumentsTab: ragChat.openChat not available');
-      return;
-    }
-    
-    // Create a safe wrapper that won't cause state updates during render
-    const safeOpenChat = (documents: Document[]) => {
-      console.log('🔧 SafeOpenChat wrapper called with:', {
+
+    // Create a safe wrapper that navigates to Excel chat page
+    const safeOpenExcelChat = (documents: Document[]) => {
+      console.log('🔧 SafeOpenExcelChat wrapper called with:', {
         documentsProvided: !!documents,
         isArray: Array.isArray(documents),
         length: documents?.length
       });
-      
-      // Schedule the actual call to avoid issues during render
+
+      // Schedule the navigation to avoid issues during render
       setTimeout(() => {
         try {
-          excelChat.openChat(documents);
+          handleNavigateToExcelChat(documents);
         } catch (error) {
-          console.error('🚨 Error in safeOpenChat:', error);
+          console.error('🚨 Error in safeOpenExcelChat:', error);
         }
       }, 0);
     };
-    
+
     try {
-      documentActions.setOnExcelChat(safeOpenChat);
+      documentActions.setOnExcelChat(safeOpenExcelChat);
       console.log('✅ DocumentsTab: Excel chat callback set successfully');
     } catch (error) {
       console.error('🚨 DocumentsTab: Error setting Excel chat callback:', error);
     }
-    
-    // Create a safe wrapper for RAG chat
+
+    // Create a safe wrapper for RAG chat that navigates to full page
     const safeOpenRagChat = (document: Document) => {
       console.log('🔧 SafeOpenRagChat wrapper called with:', {
         documentProvided: !!document,
@@ -366,24 +493,24 @@ export default function DocumentsTab({
         documentName: document?.name,
         documentId: document?.id
       });
-      
-      // Schedule the actual call to avoid issues during render
+
+      // Schedule the navigation to avoid issues during render
       setTimeout(() => {
         try {
-          ragChat.openChat(document);
+          handleNavigateToChat(document);
         } catch (error) {
           console.error('🚨 Error in safeOpenRagChat:', error);
         }
       }, 0);
     };
-    
+
     try {
       documentActions.setOnRagChat(safeOpenRagChat);
       console.log('✅ DocumentsTab: RAG chat callback set successfully');
     } catch (error) {
       console.error('🚨 DocumentsTab: Error setting RAG chat callback:', error);
     }
-    
+
     return () => {
       try {
         documentActions.setOnExcelChat(() => {
@@ -396,7 +523,7 @@ export default function DocumentsTab({
         console.error('🚨 DocumentsTab: Error cleaning up chat callbacks:', error);
       }
     };
-  }, [documentActions, excelChat.openChat, ragChat.openChat]);
+  }, [documentActions, handleNavigateToExcelChat, handleNavigateToChat]);
 
   if (documentsError) {
     return (
@@ -530,29 +657,29 @@ export default function DocumentsTab({
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400" />
                   <Input
-                    placeholder={useModernView ? "Search documents by name, type, or content..." : "Search documents..."}
+                    placeholder="Search documents by name, type, or content..."
                     value={searchTerm}
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="pl-10"
                   />
                 </div>
               </div>
-              {!useModernView && (
+              {viewMode === 'classic' && (
                 <Button variant="outline" icon={<FunnelIcon className="w-4 h-4" />}>
                   Filter
                 </Button>
               )}
             </div>
-            
+
             {/* View Toggle */}
             <div className="flex items-center space-x-3 ml-4">
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600 dark:text-gray-400">View:</span>
                 <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                   <button
-                    onClick={() => setUseModernView(true)}
+                    onClick={() => setViewMode('table')}
                     className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-sm transition-all duration-200 ${
-                      useModernView
+                      viewMode === 'table'
                         ? 'bg-white dark:bg-gray-700 shadow-sm text-primary-600 dark:text-primary-400 font-medium'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
@@ -561,9 +688,20 @@ export default function DocumentsTab({
                     <span>Table</span>
                   </button>
                   <button
-                    onClick={() => setUseModernView(false)}
+                    onClick={() => setViewMode('cards')}
                     className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-sm transition-all duration-200 ${
-                      !useModernView
+                      viewMode === 'cards'
+                        ? 'bg-white dark:bg-gray-700 shadow-sm text-primary-600 dark:text-primary-400 font-medium'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <TableCellsIcon className="w-4 h-4" />
+                    <span>Cards</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('classic')}
+                    className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-sm transition-all duration-200 ${
+                      viewMode === 'classic'
                         ? 'bg-white dark:bg-gray-700 shadow-sm text-primary-600 dark:text-primary-400 font-medium'
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
@@ -578,8 +716,8 @@ export default function DocumentsTab({
         </CardContent>
       </Card>
 
-      {/* Documents List */}
-      {useModernView ? (
+      {/* Documents List - Table View */}
+      {viewMode === 'table' && (
         <DocumentTableView
           documents={filteredDocuments}
           loading={documentsLoading}
@@ -588,24 +726,60 @@ export default function DocumentsTab({
           onSearchChange={onSearchChange}
           onRefresh={() => window.location.reload()}
           onDelete={documentActions.handleDelete}
+          onRename={handleRenameClick}
           onParse={documentActions.handleParse}
           onLoadParsed={documentActions.handleLoadParsed}
-          onSummarize={documentAI.handleSummarize}
-          onFaq={(doc, count) => documentAI.handleFaq(doc, count || 10)}
-          onQuestions={(doc, count) => documentAI.handleQuestions(doc, count || 10)}
-          onChat={documentActions.handleChat}
+          onSummarize={handleNavigateToSummary}
+          onFaq={(doc) => handleNavigateToFAQ(doc)}
+          onQuestions={(doc) => handleNavigateToQuestions(doc)}
+          onChat={handleNavigateToChat}
           onAnalyse={handleAnalyse}
           parsingDocuments={documentActions.parsingDocuments}
           loadingParsedDocuments={documentActions.loadingParsedDocuments}
           summarizingDocuments={documentAI.summarizingDocuments}
           faqGeneratingDocuments={documentAI.faqGeneratingDocuments}
           questionsGeneratingDocuments={documentAI.questionsGeneratingDocuments}
+          renamingDocuments={renamingDocuments}
           selectedDocuments={selectedDocuments}
           onSelectionChange={handleSelectionChange}
           enableSelection={true}
           highlightedDocumentId={highlightedDocumentId}
         />
-      ) : (
+      )}
+
+      {/* Documents List - Cards View */}
+      {viewMode === 'cards' && (
+        <DocumentCardView
+          documents={filteredDocuments}
+          loading={documentsLoading}
+          error={documentsError ? (documentsError as Error).message : null}
+          searchTerm={searchTerm}
+          onSearchChange={onSearchChange}
+          onRefresh={() => window.location.reload()}
+          onDelete={documentActions.handleDelete}
+          onRename={handleRenameClick}
+          onParse={documentActions.handleParse}
+          onLoadParsed={documentActions.handleLoadParsed}
+          onSummarize={handleNavigateToSummary}
+          onFaq={(doc) => handleNavigateToFAQ(doc)}
+          onQuestions={(doc) => handleNavigateToQuestions(doc)}
+          onChat={handleNavigateToChat}
+          onAnalyse={handleAnalyse}
+          parsingDocuments={documentActions.parsingDocuments}
+          loadingParsedDocuments={documentActions.loadingParsedDocuments}
+          summarizingDocuments={documentAI.summarizingDocuments}
+          faqGeneratingDocuments={documentAI.faqGeneratingDocuments}
+          questionsGeneratingDocuments={documentAI.questionsGeneratingDocuments}
+          renamingDocuments={renamingDocuments}
+          selectedDocuments={selectedDocuments}
+          onSelectionChange={handleSelectionChange}
+          enableSelection={true}
+          highlightedDocumentId={highlightedDocumentId}
+        />
+      )}
+
+      {/* Documents List - Classic View */}
+      {viewMode === 'classic' && (
         <>
           {documentsLoading ? (
             <Card>
@@ -646,10 +820,10 @@ export default function DocumentsTab({
               onDelete={documentActions.handleDelete}
               onParse={documentActions.handleParse}
               onLoadParsed={documentActions.handleLoadParsed}
-              onSummarize={documentAI.handleSummarize}
-              onFaq={(doc) => documentAI.handleFaq(doc, 5)}
-              onQuestions={(doc) => documentAI.handleQuestions(doc, 5)}
-              onChat={documentActions.handleChat}
+              onSummarize={handleNavigateToSummary}
+              onFaq={handleNavigateToFAQ}
+              onQuestions={handleNavigateToQuestions}
+              onChat={handleNavigateToChat}
               onAnalyse={handleAnalyse}
               parsingDocuments={documentActions.parsingDocuments}
               loadingParsedDocuments={documentActions.loadingParsedDocuments}
@@ -661,93 +835,26 @@ export default function DocumentsTab({
         </>
       )}
 
-      {/* AI Feature Modals - Unified Component */}
-      <DocumentAIContentModal
-        contentType="summary"
-        isOpen={documentAI.isSummaryModalOpen}
-        onClose={documentAI.handleSummaryModalClose}
-        document={documentAI.selectedDocumentForSummary}
-        data={documentAI.summaryData}
-        onRegenerate={documentAI.handleSummaryRegenerate}
-        isGenerating={documentAI.isGeneratingSummary}
-      />
+      {/* AI Feature Modals have been replaced with full-page views */}
+      {/* Navigation to /documents/[documentId]/summary, /faq, /questions, /chat, /excel-chat is handled by navigation handlers */}
 
-      <DocumentAIContentModal
-        contentType="faq"
-        isOpen={documentAI.isFAQModalOpen}
-        onClose={documentAI.handleFAQModalClose}
-        document={documentAI.selectedDocumentForFAQ}
-        data={documentAI.faqData}
-        onRegenerate={documentAI.handleFAQRegenerate}
-        isGenerating={documentAI.isGeneratingFAQ}
-      />
-
-      <DocumentAIContentModal
-        contentType="questions"
-        isOpen={documentAI.isQuestionsModalOpen}
-        onClose={documentAI.handleQuestionsModalClose}
-        document={documentAI.selectedDocumentForQuestions}
-        data={documentAI.questionsData}
-        onRegenerate={documentAI.handleQuestionsRegenerate}
-        isGenerating={documentAI.isGeneratingQuestions}
-      />
-
-      <DocumentParseModal
-        isOpen={documentActions.isParseModalOpen}
-        onClose={documentActions.closeParseModal}
-        document={documentActions.selectedDocumentForParse}
-        parseData={documentActions.parseData}
-        onSave={documentActions.handleSaveParsedContent}
-        onExtract={(parseData) => {
-          if (documentActions.selectedDocumentForParse) {
-            extraction.startExtraction(documentActions.selectedDocumentForParse, parseData || undefined);
-          }
-        }}
-      />
-
-      {/* Excel Chat Modal */}
-      <ExcelChatModal
-        isOpen={excelChat.isOpen}
-        onClose={excelChat.closeChat}
-        messages={excelChat.messages}
-        isLoading={excelChat.isLoading}
-        error={excelChat.error}
-        currentDocuments={excelChat.currentDocuments}
-        onSendMessage={excelChat.sendMessage}
-        onClearChat={excelChat.clearChat}
-        onRetry={excelChat.retryLastMessage}
-      />
-
-      {/* DocumentAgent RAG Chat Modal */}
-      <RagChatModal
-        isOpen={ragChat.isOpen}
-        onClose={ragChat.closeChat}
-        messages={ragChat.messages}
-        isLoading={ragChat.isLoading}
-        error={ragChat.error}
-        currentDocument={ragChat.currentDocument}
-        currentDocuments={ragChat.currentDocuments}
-        maxSources={ragChat.maxSources}
-        onSendMessage={ragChat.sendGeminiSearch}
-        onClearChat={ragChat.clearChat}
-        onRetry={ragChat.retryLastMessage}
-        onSetMaxSources={ragChat.setMaxSources}
-        searchMode={ragChat.searchMode}
-        folderFilter={ragChat.folderFilter}
-        fileFilter={ragChat.fileFilter}
-        searchHistory={ragChat.searchHistory}
-        folders={foldersData?.folders || []}
-        onViewHistoryItem={ragChat.viewHistoryItem}
-        onClearHistory={ragChat.clearHistory}
-        onSetSearchMode={ragChat.setSearchMode}
-        onSetFolderFilter={ragChat.setFolderFilter}
-        onSetFileFilter={ragChat.setFileFilter}
-      />
+      {/* Template Selection Modal (pre-extraction step) */}
+      <TemplateSelectionModal selection={templateSelection} />
 
       {/* Document Extraction Modal */}
       <ExtractionModal
         extraction={extraction}
         onComplete={handleExtractionComplete}
+      />
+
+      {/* Document Rename Modal */}
+      <DocumentRenameModal
+        isOpen={isRenameModalOpen}
+        onClose={handleRenameModalClose}
+        onConfirm={handleRenameConfirm}
+        document={documentToRename}
+        loading={renaming}
+        error={renameError}
       />
     </motion.div>
   );

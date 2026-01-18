@@ -16,6 +16,7 @@ import {
   UsersIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
+import { AppLayout } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -81,38 +82,38 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <AppLayout>
       <div className="max-w-6xl mx-auto">
         {/* Breadcrumb Navigation */}
-        <nav className="flex items-center space-x-2 text-sm text-secondary-600 mb-6">
-          <Link 
-            href="/dashboard" 
-            className="flex items-center space-x-1 hover:text-primary-600 transition-colors duration-200"
+        <nav className="flex items-center space-x-2 text-sm text-secondary-600 dark:text-secondary-400 mb-6">
+          <Link
+            href="/dashboard"
+            className="flex items-center space-x-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200"
           >
             <HomeIcon className="w-4 h-4" />
             <span>Dashboard</span>
           </Link>
           <ChevronLeftIcon className="w-4 h-4 rotate-180" />
-          <span className="text-secondary-900 font-medium">Settings</span>
+          <span className="text-secondary-900 dark:text-secondary-100 font-medium">Settings</span>
         </nav>
 
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center space-x-3 mb-2">
-              <Link 
-                href="/dashboard" 
-                className="inline-flex items-center space-x-2 text-secondary-600 hover:text-primary-600 transition-colors duration-200"
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center space-x-2 text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
                 <span className="text-sm">Back to Dashboard</span>
               </Link>
             </div>
-            <h1 className="text-3xl font-bold text-secondary-900 flex items-center space-x-3">
-              <Cog6ToothIcon className="w-8 h-8 text-primary-600" />
+            <h1 className="text-3xl font-bold text-secondary-900 dark:text-secondary-100 flex items-center space-x-3">
+              <Cog6ToothIcon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
               <span>Settings</span>
             </h1>
-            <p className="text-secondary-600 mt-2">
+            <p className="text-secondary-600 dark:text-secondary-400 mt-2">
               Manage your account, organization, and application preferences
             </p>
           </div>
@@ -205,6 +206,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

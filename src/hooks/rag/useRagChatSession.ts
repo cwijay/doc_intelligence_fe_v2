@@ -7,10 +7,13 @@ import {
   EnhancedRAGQueryOptions,
   GeminiSearchMode,
   DocumentChatRequest,
+  DocumentChatStreamRequest,
+  StreamEvent,
+  DocumentChatCitation,
 } from '@/types/rag';
 import { Document } from '@/types/api';
 import { simpleRagApiClient } from '@/lib/api/rag';
-import { chatWithDocuments } from '@/lib/api/ingestion/index';
+import { chatWithDocuments, chatWithDocumentsStream } from '@/lib/api/ingestion/index';
 import { useAuth } from '@/hooks/useAuth';
 import { foldersApi } from '@/lib/api/index';
 import {
@@ -24,13 +27,16 @@ import toast from 'react-hot-toast';
 export interface GeminiSearchOptions {
   searchMode?: GeminiSearchMode;
   folderName?: string;
-  fileFilter?: string;
+  /** Filter by specific file(s). Accepts single filename or array of filenames. */
+  fileFilter?: string | string[];
   maxSources?: number;
 }
 
 export interface RagChatSessionState {
   messages: RagMessage[];
   isLoading: boolean;
+  isStreaming: boolean;
+  streamingStatus: string | null;  // "Searching documents...", "Generating answer...", etc.
   error: string | null;
   isOpen: boolean;
   currentDocument: Document | null;
@@ -61,6 +67,17 @@ export interface RagChatSessionActions {
     },
     onHistoryAdd: (item: any) => void
   ) => Promise<void>;
+  sendGeminiSearchStream: (
+    query: string,
+    options: GeminiSearchOptions | undefined,
+    config: {
+      searchMode: GeminiSearchMode;
+      folderFilter: string | null;
+      fileFilter: string | null;
+      maxSources: number;
+    },
+    onHistoryAdd: (item: any) => void
+  ) => Promise<void>;
   retryLastMessage: () => Promise<void>;
 }
 
@@ -71,6 +88,8 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
   // State
   const [messages, setMessages] = useState<RagMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
@@ -246,11 +265,20 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
     const effectiveMaxSources = options?.maxSources || config.maxSources;
 
     // Auto-derive filters from currentDocuments when not explicitly set
-    // This ensures semantic cache is correctly scoped by document
-    const effectiveFileFilter = options?.fileFilter || config.fileFilter ||
-      (currentDocuments.length === 1 ? currentDocuments[0].name : null);
-    // Use currentFolderName (resolved when opening chat) as fallback for folder filter
-    const effectiveFolderName = options?.folderName || config.folderFilter || currentFolderName;
+    // This ensures semantic cache is correctly scoped by document(s)
+    // Support multiple files: pass array of document names when multiple are selected
+    let effectiveFileFilter: string | string[] | null = options?.fileFilter || config.fileFilter || null;
+    if (!effectiveFileFilter && currentDocuments.length > 0) {
+      if (currentDocuments.length === 1) {
+        effectiveFileFilter = currentDocuments[0].name;
+      } else {
+        // Multiple documents selected - pass array of file names
+        effectiveFileFilter = currentDocuments.map(doc => doc.name);
+      }
+    }
+    // Don't fallback to currentFolderName - respect user's explicit folder filter choice
+    // When user selects "All Folders", config.folderFilter is null and should remain null
+    const effectiveFolderName = options?.folderName || config.folderFilter || null;
 
     console.log('📤 Sending Gemini search with filters:', {
       fileFilter: effectiveFileFilter,
@@ -268,6 +296,7 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
         organization_name: user.org_name,
         session_id: sessionId || undefined,
         folder_filter: effectiveFolderName || undefined,
+        // Pass file_filter as-is (string, string[], or undefined)
         file_filter: effectiveFileFilter || undefined,
         search_mode: effectiveSearchMode,
         max_sources: effectiveMaxSources,
@@ -296,14 +325,25 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
         },
       });
 
+      // Calculate confidence from citation relevance scores (average of top scores)
+      // If citations exist but scores are 0, default to 0.8 (having citations = high confidence)
+      const citations = response.citations || [];
+      let confidenceScore = 0;
+      if (citations.length > 0) {
+        const totalRelevance = citations.reduce((sum, c) => sum + (c.relevance_score || 0), 0);
+        const avgRelevance = totalRelevance / citations.length;
+        // Use calculated average, or default to 0.8 if citations exist but scores are missing
+        confidenceScore = avgRelevance > 0 ? avgRelevance : 0.8;
+      }
+
       addMessage({
         type: 'assistant',
         content: response.answer || 'No answer generated.',
-        citations: response.citations || [],
+        citations: citations,
         metadata: {
           processing_time: response.processing_time_ms / 1000,
-          confidence_score: 0,
-          sources_count: response.citations?.length || 0,
+          confidence_score: confidenceScore,
+          sources_count: citations.length,
           search_strategy: response.search_mode,
         },
       });
@@ -318,6 +358,209 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
       toast.error(`Chat failed: ${errorMessage}`);
     } finally {
       setIsLoading(false);
+    }
+  }, [user?.org_name, sessionId, addMessage, currentDocuments, currentFolderName]);
+
+  /**
+   * Send a streaming chat request using SSE
+   * Tokens are delivered progressively for real-time UI updates
+   */
+  const sendGeminiSearchStream = useCallback(async (
+    query: string,
+    options: GeminiSearchOptions | undefined,
+    config: {
+      searchMode: GeminiSearchMode;
+      folderFilter: string | null;
+      fileFilter: string | null;
+      maxSources: number;
+    },
+    onHistoryAdd: (item: any) => void
+  ) => {
+    if (!user?.org_name) {
+      toast.error('Cannot search: Missing organization information');
+      return;
+    }
+
+    const effectiveSearchMode = options?.searchMode || config.searchMode;
+    const effectiveMaxSources = options?.maxSources || config.maxSources;
+
+    // Auto-derive filters from currentDocuments when not explicitly set
+    let effectiveFileFilter: string | string[] | null = options?.fileFilter || config.fileFilter || null;
+    if (!effectiveFileFilter && currentDocuments.length > 0) {
+      if (currentDocuments.length === 1) {
+        effectiveFileFilter = currentDocuments[0].name;
+      } else {
+        effectiveFileFilter = currentDocuments.map(doc => doc.name);
+      }
+    }
+    const effectiveFolderName = options?.folderName || config.folderFilter || null;
+
+    console.log('🌊 Starting streaming Gemini search:', {
+      query,
+      fileFilter: effectiveFileFilter,
+      folderFilter: effectiveFolderName,
+    });
+
+    // Add user message
+    addMessage({ type: 'user', content: query });
+
+    // Create assistant message that we'll update with streaming content
+    // Don't set confidence_score or sources_count until we have actual data
+    const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    const assistantMessage: RagMessage = {
+      id: assistantMessageId,
+      type: 'assistant',
+      content: '',
+      citations: [],
+      timestamp: new Date(),
+      metadata: {
+        search_strategy: effectiveSearchMode,
+        // processing_time, confidence_score, sources_count will be set after streaming completes
+      },
+    };
+    setMessages(prev => [...prev, assistantMessage]);
+
+    setIsStreaming(true);
+    setIsLoading(true);
+    setStreamingStatus('Starting...');
+    setError(null);
+
+    // Track accumulated content and citations
+    let accumulatedContent = '';
+    let citations: DocumentChatCitation[] = [];
+    let finalSessionId: string | null = null;
+    let processingTimeMs = 0;
+
+    try {
+      const request: DocumentChatStreamRequest = {
+        query,
+        organization_name: user.org_name,
+        session_id: sessionId || undefined,
+        folder_filter: effectiveFolderName || undefined,
+        file_filter: effectiveFileFilter || undefined,
+        search_mode: effectiveSearchMode,
+        max_sources: effectiveMaxSources,
+        include_tool_events: true,
+      };
+
+      await chatWithDocumentsStream(request, (event: StreamEvent) => {
+        switch (event.event) {
+          case 'status':
+            setStreamingStatus(event.message || 'Processing...');
+            break;
+
+          case 'tool_start':
+            if (event.tool_name === 'rag_search') {
+              setStreamingStatus('Searching documents...');
+            } else {
+              setStreamingStatus(`Running ${event.tool_name}...`);
+            }
+            break;
+
+          case 'tool_end':
+            if (event.tool_name === 'rag_search') {
+              setStreamingStatus('Generating answer...');
+            }
+            break;
+
+          case 'token':
+            // Update accumulated content with new token
+            accumulatedContent = event.accumulated || (accumulatedContent + (event.token || ''));
+            // Update the message in place
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMessageId
+                ? { ...msg, content: accumulatedContent }
+                : msg
+            ));
+            break;
+
+          case 'citations':
+            citations = event.citations || [];
+            // Update citations in message
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMessageId
+                ? { ...msg, citations }
+                : msg
+            ));
+            break;
+
+          case 'usage':
+            // Could track token usage if needed
+            break;
+
+          case 'done':
+            finalSessionId = event.session_id || null;
+            processingTimeMs = event.processing_time_ms || 0;
+            setStreamingStatus(null);
+            break;
+
+          case 'error':
+            throw new Error(event.error || 'Stream error');
+        }
+      });
+
+      // Update session ID if we got a new one
+      if (finalSessionId) {
+        setSessionId(finalSessionId);
+      }
+
+      // Calculate confidence from citations
+      let confidenceScore = 0;
+      if (citations.length > 0) {
+        const totalRelevance = citations.reduce((sum, c) => sum + (c.relevance_score || 0), 0);
+        const avgRelevance = totalRelevance / citations.length;
+        confidenceScore = avgRelevance > 0 ? avgRelevance : 0.8;
+      }
+
+      // Final update with metadata
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMessageId
+          ? {
+              ...msg,
+              content: accumulatedContent || 'No answer generated.',
+              citations,
+              metadata: {
+                processing_time: processingTimeMs / 1000,
+                confidence_score: confidenceScore,
+                sources_count: citations.length,
+                search_strategy: effectiveSearchMode,
+              },
+            }
+          : msg
+      ));
+
+      // Add to history
+      onHistoryAdd({
+        query,
+        response: accumulatedContent,
+        citations,
+        timestamp: new Date(),
+        filters: {
+          folder: effectiveFolderName || undefined,
+          file: effectiveFileFilter || undefined,
+          searchMode: effectiveSearchMode,
+        },
+      });
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Stream failed';
+      setError(errorMessage);
+
+      // Update the assistant message with error
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMessageId
+          ? {
+              ...msg,
+              content: `Sorry, I encountered an error: ${errorMessage}`,
+              metadata: { processing_time: 0, confidence_score: 0, sources_count: 0 },
+            }
+          : msg
+      ));
+      toast.error(`Chat failed: ${errorMessage}`);
+    } finally {
+      setIsStreaming(false);
+      setIsLoading(false);
+      setStreamingStatus(null);
     }
   }, [user?.org_name, sessionId, addMessage, currentDocuments, currentFolderName]);
 
@@ -342,6 +585,8 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
   return {
     messages,
     isLoading,
+    isStreaming,
+    streamingStatus,
     error,
     isOpen,
     currentDocument,
@@ -355,6 +600,7 @@ export function useRagChatSession(): RagChatSessionState & RagChatSessionActions
     setMessages,
     sendMessage,
     sendGeminiSearch,
+    sendGeminiSearchStream,
     retryLastMessage,
   };
 }

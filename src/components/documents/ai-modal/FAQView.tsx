@@ -22,9 +22,9 @@ interface FAQContentProps {
 
 export function FAQContent({ data, expandedItems, toggleExpanded, setExpandedItems }: FAQContentProps) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-secondary-900">Frequently Asked Questions</h3>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between flex-shrink-0 mb-4">
+        <h3 className="text-lg font-semibold text-secondary-900 dark:text-white">Frequently Asked Questions</h3>
         <div className="flex items-center space-x-2">
           {data.faqs && data.faqs.length > 0 && (
             <>
@@ -48,9 +48,9 @@ export function FAQContent({ data, expandedItems, toggleExpanded, setExpandedIte
       </div>
 
       {data.faqs && data.faqs.length > 0 ? (
-        <div className="space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
           {data.faqs.map((faq, index) => (
-            <div key={index} className="border border-secondary-200 rounded-lg overflow-hidden">
+            <div key={index} className="border border-secondary-200 dark:border-secondary-700 rounded-lg overflow-hidden">
               <div
                 role="button"
                 tabIndex={0}
@@ -98,9 +98,11 @@ export function FAQContent({ data, expandedItems, toggleExpanded, setExpandedIte
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-secondary-500">
-          <QuestionMarkCircleIcon className="w-12 h-12 mx-auto mb-2" />
-          <p>No FAQ content available</p>
+        <div className="flex-1 flex items-center justify-center text-secondary-500">
+          <div className="text-center">
+            <QuestionMarkCircleIcon className="w-12 h-12 mx-auto mb-2" />
+            <p>No FAQ content available</p>
+          </div>
         </div>
       )}
     </div>

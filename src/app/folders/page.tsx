@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import AuthGuard from '@/components/guards/AuthGuard';
 import { motion } from 'framer-motion';
-import Navbar from '@/components/layout/Navbar';
+import { AppLayout } from '@/components/layout';
 import FolderList from '@/components/folders/FolderList';
 import FolderTreeView from '@/components/folders/FolderTreeView';
 import CreateFolderModal from '@/components/folders/CreateFolderModal';
@@ -87,22 +87,19 @@ function FoldersPageContent() {
 
   if (!organizationId) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
           <div className="text-center">
-            <p className="text-lg text-secondary-600">Loading organization...</p>
+            <p className="text-lg text-secondary-600 dark:text-secondary-400">Loading organization...</p>
           </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <AppLayout>
+      <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -133,7 +130,7 @@ function FoldersPageContent() {
             />
           )}
         </motion.div>
-      </main>
+      </div>
 
       {/* Modals */}
       <CreateFolderModal
@@ -158,6 +155,6 @@ function FoldersPageContent() {
         variant="danger"
         loading={deleteFolder.isPending}
       />
-    </div>
+    </AppLayout>
   );
 }

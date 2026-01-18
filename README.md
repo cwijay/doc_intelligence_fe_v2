@@ -19,6 +19,7 @@ Biz-To-Bricks provides intelligent document processing with AI-powered analysis,
     -   Answer generation with citations
     -   Session-based search history
 -   **Excel Integration**: Specialized AI chat functionality for Excel documents
+-   **Full-Page AI Views**: All AI features (Summary, FAQ, Questions, Chat, Excel Chat) now have dedicated full-page views for maximum screen real estate
 -   **Content Metadata Extraction**: Intelligent extraction of document metadata and structure
 -   **Multi-Format Support**: Process various document types with specialized handlers
 
@@ -341,7 +342,7 @@ All configuration values are centralized for maintainability:
 4.  **Start the development server with Turbopack**
     
     ```bash
-    npm run dev
+    npm run dev:webpack
     ```
     
 5.  **Open your browser**Navigate to [http://localhost:3000](http://localhost:3000)
@@ -607,15 +608,17 @@ Monitor usage quotas and manage subscriptions:
     -   **Document Library**: Grid/list views with advanced filtering and search
     -   **AI-Powered Processing**: File upload with mandatory folder organization
     -   **Interactive Document Editor**: Split-view editor with edit/preview modes and syntax highlighting
-    -   **Unified AI Content Modal**: Single modal for summaries, FAQs, and questions with:
-        -   Three-tab interface (Content, Analysis, Options)
-        -   Expandable cards with markdown rendering
-        -   Regeneration with customizable options
-        -   Cache status and processing time indicators
     -   **Document Status Tracking**: Real-time processing status and history
-    -   **RAG Chat Integration**: Chat with documents using advanced AI retrieval
-    -   **Excel Chat**: Specialized AI chat for Excel documents
     -   **Markdown Rendering**: Full markdown support with syntax highlighting for code blocks
+
+    **Full-Page AI Feature Views** (accessible from document actions):
+    -   `/documents/[documentId]/summary` - AI-generated document summaries with regeneration options
+    -   `/documents/[documentId]/faq` - AI-generated FAQs with expandable cards
+    -   `/documents/[documentId]/questions` - AI-generated comprehension questions with difficulty levels
+    -   `/documents/[documentId]/chat` - RAG-powered document chat with hybrid search
+    -   `/documents/[documentId]/excel-chat` - Specialized Excel/spreadsheet analysis chat
+    -   `/documents/[documentId]/parse` - Interactive document parsing and editing
+    -   `/documents/[documentId]/extract` - Data extraction wizard with templates
 5.  **Folders** (`/folders`)
 
     -   Folder management and organization (required for document uploads)
@@ -816,8 +819,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   `src/hooks/useTiers.ts` - Subscription tier hooks
 -   `src/hooks/ai/` - Modular AI hooks (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
 -   `src/hooks/ai/useAIGeneration.ts` - Generic AI generation hook (factory pattern)
--   `src/hooks/rag/` - RAG hooks (useRagChatConfig, useRagChatSession, useSearchHistory)
--   `src/components/documents/ai-modal/` - Unified AI content modal and views
+-   `src/hooks/ai/useAIContentPage.ts` - Page state for full-page AI content views
+-   `src/hooks/rag/` - RAG hooks (useRagChatConfig, useRagChatSession, useSearchHistory, useChatPage)
+-   `src/hooks/useExcelChatPage.ts` - Page state for Excel chat full-page view
+-   `src/components/documents/ai-modal/` - AI content views (SummaryView, FAQView, QuestionsView)
+-   `src/components/documents/ai-content/` - Full-page AI content components (AIContentPage, AIContentHeader)
+-   `src/components/documents/chat/` - Full-page document chat (ChatPage)
+-   `src/components/documents/excel-chat/` - Full-page Excel analysis chat (ExcelChatPage)
 -   `src/components/documents/ai-progress/` - AI progress toast factory
 -   `src/components/documents/card/` - Reusable document card components
 -   `src/components/insights/` - Insights dashboard, activity timeline, jobs table
@@ -851,7 +859,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 -   AI hooks in `src/hooks/ai/` - AI features integration (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
 -   `useAIGeneration()` - Generic AI generation hook with factory pattern (reduces code duplication)
 -   `useAIModalState()` - Shared modal state (tabs, editing, regeneration options)
--   RAG hooks in `src/hooks/rag/` - RAG-based document chat functionality (useRagChatConfig, useRagChatSession)
+-   `useAIContentPage()` - Page state management for full-page AI content views (summary, FAQ, questions)
+-   RAG hooks in `src/hooks/rag/` - RAG-based document chat functionality (useRagChatConfig, useRagChatSession, useChatPage)
+-   `useExcelChatPage()` - Page state management for Excel chat full-page view
 
 #### Analytics & Usage Hooks
 
@@ -866,8 +876,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 #### AI Features Architecture
 
--   **Unified Modal**: `src/components/documents/ai-modal/DocumentAIContentModal` handles summary, FAQ, and questions
--   **Shared State Hook**: `useAIModalState` provides common modal functionality
+-   **Full-Page Views**: All AI features now have dedicated full-page routes for maximum screen space:
+    -   `/documents/[documentId]/summary` - AI-generated summaries
+    -   `/documents/[documentId]/faq` - AI-generated FAQs
+    -   `/documents/[documentId]/questions` - AI-generated questions
+    -   `/documents/[documentId]/chat` - RAG document chat
+    -   `/documents/[documentId]/excel-chat` - Excel analysis chat
+-   **Page Components**:
+    -   `src/components/documents/ai-content/` - AIContentPage, AIContentHeader
+    -   `src/components/documents/chat/` - ChatPage
+    -   `src/components/documents/excel-chat/` - ExcelChatPage
+-   **Page State Hooks**:
+    -   `useAIContentPage()` - Summary/FAQ/Questions page state with sessionStorage context
+    -   `useChatPage()` - RAG chat page state
+    -   `useExcelChatPage()` - Excel chat page state
 -   **Content Types**: `'summary' | 'faq' | 'questions'`
 -   **Response Caching**: All AI responses cached in GCS with cache status indicators
 -   **Regeneration**: Customizable options per content type (length, format, count)

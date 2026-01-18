@@ -11,18 +11,20 @@ import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/layout/Navbar';
+import { AppLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import AuthGuard from '@/components/guards/AuthGuard';
 import { useAuth } from '@/hooks/useAuth';
-import { useDocumentStats } from '@/hooks/useFolders';
+import { useDocumentStats, useFolders } from '@/hooks/useFolders';
 import { useActivityTimeline } from '@/hooks/useInsights';
 import { useUsageSummary } from '@/hooks/useUsageHistory';
+import { useDocuments } from '@/hooks/useAllDocuments';
 import { formatFileSize } from '@/lib/file-utils';
-import { ActivityTimeline, ActivityTimelineSkeleton } from '@/components/insights/ActivityTimeline';
+import { ActivitySection, ActivitySectionSkeleton } from '@/components/activity';
 import { useCapabilitiesModal } from '@/hooks/useCapabilitiesModal';
 import { CapabilitiesModal } from '@/components/ui/CapabilitiesModal';
+import { DashboardChat } from '@/components/dashboard';
 
 export default function Dashboard() {
   return (
@@ -52,6 +54,20 @@ function DashboardContent() {
 
   // Fetch usage summary for API usage card
   const { data: usageSummary, isLoading: usageLoading, error: usageError } = useUsageSummary(
+    !!organizationId
+  );
+
+  // Fetch folders for chat scope selector
+  const { data: foldersData, isLoading: foldersLoading } = useFolders(
+    organizationId,
+    undefined,
+    !!organizationId
+  );
+
+  // Fetch all documents for chat document selection
+  const { data: documentsData, isLoading: documentsLoading } = useDocuments(
+    organizationId,
+    null,
     !!organizationId
   );
 
@@ -150,9 +166,7 @@ function DashboardContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700 transition-colors duration-200">
-      <Navbar />
-
+    <AppLayout noPadding>
       {/* Gradient Header - Brand Colors */}
       <div className="bg-gradient-to-br from-brand-navy-500 via-brand-cyan-400 to-brand-coral-500 dark:from-brand-navy-600 dark:via-brand-cyan-500 dark:to-brand-coral-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -168,6 +182,14 @@ function DashboardContent() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6">
+        {/* Chat with Documents */}
+        <DashboardChat
+          folders={foldersData?.folders || []}
+          documents={documentsData?.documents || []}
+          isLoadingFolders={foldersLoading}
+          isLoadingDocuments={documentsLoading}
+        />
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
             <div
@@ -230,7 +252,7 @@ function DashboardContent() {
               </CardHeader>
               <CardContent>
                 {activitiesLoading ? (
-                  <ActivityTimelineSkeleton />
+                  <ActivitySectionSkeleton />
                 ) : activitiesError ? (
                   <div className="text-center py-8">
                     <p className="text-error-600 dark:text-error-400 text-sm">Failed to load recent activities</p>
@@ -240,7 +262,12 @@ function DashboardContent() {
                     <p className="text-secondary-500 dark:text-secondary-400 text-sm">No recent activities found</p>
                   </div>
                 ) : (
-                  <ActivityTimeline activities={activityData.activities} />
+                  <ActivitySection
+                    activities={activityData.activities}
+                    total={activityData.total}
+                    hasMore={activityData.has_more}
+                    isLoading={activitiesLoading}
+                  />
                 )}
               </CardContent>
             </Card>
@@ -305,11 +332,11 @@ function DashboardContent() {
         </div>
       </main>
 
-      {/* Capabilities Modal */}
+      {/* Capabilities Modal - for Explore Features button */}
       <CapabilitiesModal
         isOpen={capabilitiesModal.isOpen}
         onClose={capabilitiesModal.close}
       />
-    </div>
+    </AppLayout>
   );
 }

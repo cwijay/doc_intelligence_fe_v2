@@ -9,7 +9,7 @@ import {
   DocumentTextIcon,
   CloudArrowUpIcon,
 } from '@heroicons/react/24/outline';
-import Navbar from '@/components/layout/Navbar';
+import { AppLayout } from '@/components/layout';
 import Button from '@/components/ui/Button';
 import DocumentTreeSidebar from './DocumentTreeSidebar';
 import DocumentsTab from './DocumentsTab';
@@ -18,8 +18,10 @@ import CreateFolderModal from '@/components/folders/CreateFolderModal';
 import { useSidebarState } from '@/hooks/useSidebarState';
 import { useTreeSelection } from '@/hooks/useTreeSelection';
 import { useFolders } from '@/hooks/useFolders';
+import { useDocumentActions } from '@/hooks/useDocumentActions';
 import { useAuth } from '@/hooks/useAuth';
 import { Folder, FolderList } from '@/types/api';
+import { LAYOUT } from '@/lib/constants';
 
 export default function DocumentTreeLayout() {
   const { user } = useAuth();
@@ -53,6 +55,9 @@ export default function DocumentTreeLayout() {
     clearDocumentMultiSelection,
   } = useTreeSelection();
 
+  // Document actions (for navigation to parse page)
+  const documentActions = useDocumentActions();
+
   // Search state for documents
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -62,6 +67,7 @@ export default function DocumentTreeLayout() {
 
   // Create folder modal state
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+
 
   // Fetch folders
   const {
@@ -108,6 +114,7 @@ export default function DocumentTreeLayout() {
     selectDocument(documentId);
   }, [selectDocument]);
 
+
   // Breadcrumb component
   const Breadcrumb = () => (
     <div className="flex items-center space-x-2 text-sm">
@@ -135,13 +142,14 @@ export default function DocumentTreeLayout() {
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700 transition-colors duration-200">
-      <Navbar />
+  // Calculate remaining height after header
+  const contentHeight = `calc(100vh - ${LAYOUT.HEADER_HEIGHT}px)`;
 
-      {/* Main Content Area */}
-      <div className="flex h-[calc(100vh-64px)]">
-        {/* Sidebar */}
+  return (
+    <AppLayout noPadding>
+      {/* Main Content Area - Full height minus header */}
+      <div className="flex" style={{ height: contentHeight }}>
+        {/* Document Tree Sidebar */}
         <DocumentTreeSidebar
           sidebarState={sidebarState}
           onToggleCollapse={toggleCollapse}
@@ -217,6 +225,7 @@ export default function DocumentTreeLayout() {
               multiSelectedDocumentIds={multiSelectedDocumentIds}
               onSelectAllDocuments={selectAllDocuments}
               clearDocumentMultiSelection={clearDocumentMultiSelection}
+              documentActions={documentActions}
             />
           </div>
         </main>
@@ -228,6 +237,6 @@ export default function DocumentTreeLayout() {
         onClose={handleCloseFolderModal}
         organizationId={organizationId}
       />
-    </div>
+    </AppLayout>
   );
 }

@@ -50,29 +50,58 @@ export default function RootLayout({
           </ErrorBoundary>
           <Toaster
             position="top-right"
+            gutter={12}
+            containerStyle={{
+              top: 80,
+            }}
             toastOptions={{
               duration: 4000,
               className: '',
               style: {
-                background: 'rgb(var(--card))',
-                color: 'rgb(var(--foreground))',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                borderRadius: '0.75rem',
-                padding: '16px',
+                background: '#ffffff',
+                color: '#1e293b',
+                boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.08)',
+                borderRadius: '12px',
+                padding: '14px 18px',
                 fontSize: '14px',
                 fontWeight: '500',
-                border: '1px solid rgb(var(--border))',
+                border: 'none',
+                borderLeft: '4px solid #E07850',
+                maxWidth: '400px',
+                lineHeight: '1.5',
+                gap: '12px',
               },
               success: {
+                style: {
+                  background: 'linear-gradient(to right, #f0fdf4, #ffffff)',
+                  borderLeft: '4px solid #22c55e',
+                  color: '#166534',
+                },
                 iconTheme: {
                   primary: '#22c55e',
-                  secondary: '#fff',
+                  secondary: '#ffffff',
                 },
               },
               error: {
+                style: {
+                  background: 'linear-gradient(to right, #fef2f2, #ffffff)',
+                  borderLeft: '4px solid #ef4444',
+                  color: '#991b1b',
+                },
                 iconTheme: {
                   primary: '#ef4444',
-                  secondary: '#fff',
+                  secondary: '#ffffff',
+                },
+              },
+              loading: {
+                style: {
+                  background: 'linear-gradient(to right, #fef3ef, #ffffff)',
+                  borderLeft: '4px solid #E07850',
+                  color: '#5a3020',
+                },
+                iconTheme: {
+                  primary: '#E07850',
+                  secondary: '#ffffff',
                 },
               },
             }}

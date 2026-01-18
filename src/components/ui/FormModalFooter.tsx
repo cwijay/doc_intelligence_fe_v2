@@ -17,7 +17,7 @@ export interface FormModalFooterProps {
   /** Text to show on submit button while submitting */
   submittingText?: string;
   /** Submit button variant */
-  submitVariant?: 'primary' | 'danger';
+  submitVariant?: 'primary' | 'error';
   /** Cancel button variant */
   cancelVariant?: 'ghost' | 'outline' | 'secondary';
   /** Additional className for the container */

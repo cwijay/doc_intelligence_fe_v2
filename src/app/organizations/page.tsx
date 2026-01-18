@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
+import {
   BuildingOfficeIcon,
   PlusIcon,
   MagnifyingGlassIcon,
@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import Navbar from '@/components/layout/Navbar';
+import { AppLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -79,10 +79,8 @@ export default function OrganizationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <AppLayout>
+      <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -90,11 +88,11 @@ export default function OrganizationsPage() {
         >
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-poppins font-bold text-secondary-900 flex items-center space-x-3">
-                <BuildingOfficeIcon className="w-8 h-8 text-primary-600" />
+              <h1 className="text-3xl font-poppins font-bold text-secondary-900 dark:text-secondary-100 flex items-center space-x-3">
+                <BuildingOfficeIcon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                 <span>Organizations</span>
               </h1>
-              <p className="text-lg text-secondary-600 mt-2">
+              <p className="text-lg text-secondary-600 dark:text-secondary-400 mt-2">
                 Manage your business organizations and their settings
               </p>
             </div>
@@ -298,7 +296,7 @@ export default function OrganizationsPage() {
             )}
           </>
         )}
-      </main>
+      </div>
 
       <AddOrganizationModal
         isOpen={isAddModalOpen}
@@ -335,6 +333,6 @@ export default function OrganizationsPage() {
         variant="danger"
         loading={deleteOrganization.isPending}
       />
-    </div>
+    </AppLayout>
   );
 }

@@ -261,6 +261,18 @@ export interface DocumentDeleteResponse {
   message: string;
 }
 
+export interface DocumentRenameRequest {
+  new_name: string;
+}
+
+export interface DocumentRenameResponse {
+  success: boolean;
+  document: Document;
+  renamed_paths: Record<string, string>;
+  store_reindexed: boolean;
+  message?: string;
+}
+
 export interface DocumentList {
   documents: Document[];
   total: number;

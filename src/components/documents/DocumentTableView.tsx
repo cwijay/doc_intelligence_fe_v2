@@ -17,6 +17,7 @@ import {
   ChartBarIcon,
   CheckCircleIcon,
   CloudArrowDownIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { Document, DocumentStatus } from '@/types/api';
 import { getFileTypeInfo, formatFileSize } from '@/lib/file-types';
@@ -35,6 +36,7 @@ interface DocumentTableViewProps {
   onRefresh?: () => void;
   onView?: (document: Document) => void;
   onDownload?: (document: Document) => void;
+  onRename?: (document: Document) => void;
   onDelete?: (document: Document) => void;
   onParse?: (document: Document) => void;
   onLoadParsed?: (document: Document) => void;
@@ -48,6 +50,7 @@ interface DocumentTableViewProps {
   summarizingDocuments?: Set<string>;
   faqGeneratingDocuments?: Set<string>;
   questionsGeneratingDocuments?: Set<string>;
+  renamingDocuments?: Set<string>;
   selectedDocuments?: Set<string>;
   onSelectionChange?: (selectedIds: Set<string>) => void;
   enableSelection?: boolean;
@@ -195,6 +198,7 @@ export default function DocumentTableView({
   searchTerm,
   onSearchChange,
   onRefresh,
+  onRename,
   onParse,
   onLoadParsed,
   onSummarize,
@@ -207,6 +211,7 @@ export default function DocumentTableView({
   summarizingDocuments = new Set(),
   faqGeneratingDocuments = new Set(),
   questionsGeneratingDocuments = new Set(),
+  renamingDocuments = new Set(),
   selectedDocuments = new Set(),
   onSelectionChange,
   enableSelection = false,
@@ -586,6 +591,18 @@ export default function DocumentTableView({
                           disabled={!isParsed}
                           colorClass="text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
                         />
+
+                        {/* Rename */}
+                        {onRename && (
+                          <ActionButton
+                            icon={PencilSquareIcon}
+                            label="Rename document"
+                            onClick={() => onRename(document)}
+                            disabled={renamingDocuments.has(document.id)}
+                            isProcessing={renamingDocuments.has(document.id)}
+                            colorClass="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                          />
+                        )}
 
                         {/* Analyse (Spreadsheets only) */}
                         {onAnalyse && isSpreadsheetFile(document) && (

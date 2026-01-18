@@ -106,18 +106,21 @@ export const usageApi = {
 
   /**
    * Get usage breakdown by feature/model
+   * @param period - Time period: '7d', '14d', '21d', '28d', '30d', or '90d'
    * @returns Usage breakdown with feature-level details
    */
-  getBreakdown: async (): Promise<UsageSummaryResponse> => {
-    console.log('📊 usageApi.getBreakdown: Fetching usage breakdown');
+  getBreakdown: async (period: UsagePeriod = '7d'): Promise<UsageSummaryResponse> => {
+    console.log('📊 usageApi.getBreakdown: Fetching usage breakdown for period:', period);
     try {
-      const response = await aiApi.get('/api/v1/usage/breakdown');
+      const response = await aiApi.get('/api/v1/usage/breakdown', { params: { period } });
       console.log('✅ usageApi.getBreakdown: Success', {
+        period,
         breakdownCount: response.data?.feature_breakdown?.length || 0,
       });
       return response.data;
     } catch (error) {
       console.error('❌ usageApi.getBreakdown: Error', {
+        period,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;

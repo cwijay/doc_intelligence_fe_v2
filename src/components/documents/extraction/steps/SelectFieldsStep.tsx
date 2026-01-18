@@ -261,7 +261,7 @@ export function SelectFieldsStep({ extraction }: SelectFieldsStepProps) {
 
       {/* Fields table */}
       <div className="border border-secondary-200 dark:border-secondary-700 rounded-lg overflow-hidden">
-        <div className="max-h-[300px] overflow-y-auto">
+        <div className="max-h-[calc(100vh-450px)] min-h-[300px] overflow-y-auto">
           <table className="min-w-full divide-y divide-secondary-200 dark:divide-secondary-700">
             <thead className="bg-secondary-50 dark:bg-secondary-800 sticky top-0">
               <tr>

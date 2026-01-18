@@ -58,9 +58,9 @@ export function ActionsStep({ extraction }: ActionsStepProps) {
   const fieldCount = Object.keys(extractedData).length;
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col h-full space-y-6">
       {/* Summary */}
-      <div className="text-center">
+      <div className="text-center flex-shrink-0">
         <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
           <CheckCircleIcon className="h-8 w-8 text-green-600 dark:text-green-400" />
         </div>
@@ -78,7 +78,7 @@ export function ActionsStep({ extraction }: ActionsStepProps) {
       </div>
 
       {/* Action buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
         {/* Save to Database */}
         <div className="border border-secondary-200 dark:border-secondary-700 rounded-lg p-6 text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-4">
@@ -172,8 +172,8 @@ export function ActionsStep({ extraction }: ActionsStepProps) {
       </div>
 
       {/* JSON Preview */}
-      <div className="border border-secondary-200 dark:border-secondary-700 rounded-lg overflow-hidden">
-        <div className="bg-secondary-50 dark:bg-secondary-800 px-4 py-2 border-b border-secondary-200 dark:border-secondary-700 flex items-center justify-between">
+      <div className="border border-secondary-200 dark:border-secondary-700 rounded-lg overflow-hidden flex-1 flex flex-col">
+        <div className="bg-secondary-50 dark:bg-secondary-800 px-4 py-2 border-b border-secondary-200 dark:border-secondary-700 flex items-center justify-between flex-shrink-0">
           <h4 className="text-sm font-medium text-secondary-700 dark:text-secondary-300">
             Extracted Data (JSON)
           </h4>
@@ -181,7 +181,7 @@ export function ActionsStep({ extraction }: ActionsStepProps) {
             <DocumentDuplicateIcon className="h-4 w-4" />
           </Button>
         </div>
-        <div className="p-4 bg-secondary-900 dark:bg-brand-navy-800 max-h-[200px] overflow-auto">
+        <div className="p-4 bg-secondary-900 dark:bg-brand-navy-800 overflow-auto flex-1" style={{ maxHeight: 'calc(100vh - 500px)', minHeight: '200px' }}>
           <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
             {JSON.stringify(extractedData, null, 2)}
           </pre>

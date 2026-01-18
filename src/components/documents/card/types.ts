@@ -13,6 +13,7 @@ export interface DocumentCardProps {
   onSelectionChange?: (selected: boolean) => void;
   onView?: () => void;
   onDownload?: () => void;
+  onRename?: () => void;
   onDelete?: () => void;
   onParse?: () => void;
   onLoadParsed?: () => void;

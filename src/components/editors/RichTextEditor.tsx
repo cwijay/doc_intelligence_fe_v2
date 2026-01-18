@@ -27,6 +27,7 @@ interface RichTextEditorProps {
   onChange: (content: string) => void;
   className?: string;
   editable?: boolean;
+  style?: React.CSSProperties;
 }
 
 // Helper function to detect if content is already HTML
@@ -63,6 +64,7 @@ export default function RichTextEditor({
   onChange,
   className,
   editable = true,
+  style,
 }: RichTextEditorProps) {
   // Convert markdown content to HTML for the editor
   const htmlContent = useMemo(() => convertToHtml(content), [content]);
@@ -93,7 +95,7 @@ export default function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[400px] p-4',
+        class: 'prose prose-sm max-w-none focus:outline-none h-full p-4 dark:prose-invert',
       },
     },
   });
@@ -157,9 +159,9 @@ export default function RichTextEditor({
   const isInTable = editor.isActive('table');
 
   return (
-    <div className={clsx('rich-text-editor border border-secondary-200 rounded-lg overflow-hidden', className)}>
+    <div className={clsx('rich-text-editor border border-secondary-200 rounded-lg overflow-hidden flex flex-col', className)} style={style}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 p-2 bg-secondary-50 border-b border-secondary-200 flex-wrap">
+      <div className="flex items-center gap-1 p-2 bg-secondary-50 border-b border-secondary-200 flex-wrap flex-shrink-0">
         {/* Table insert button */}
         <button
           onClick={insertTable}
@@ -265,7 +267,9 @@ export default function RichTextEditor({
       </div>
 
       {/* Editor content */}
-      <EditorContent editor={editor} className="editor-content" />
+      <div className="flex-1 overflow-y-auto">
+        <EditorContent editor={editor} className="editor-content h-full" />
+      </div>
     </div>
   );
 }

@@ -119,9 +119,9 @@ export function ExtractStep({ extraction }: ExtractStepProps) {
   // If already extracted, show results
   if (extractedData) {
     return (
-      <div className="space-y-6">
+      <div className="flex flex-col h-full space-y-4">
         {/* Success header */}
-        <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+        <div className="flex-shrink-0 flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
           <CheckCircleIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
           <div>
             <h3 className="text-sm font-medium text-green-800 dark:text-green-200">
@@ -135,7 +135,7 @@ export function ExtractStep({ extraction }: ExtractStepProps) {
 
         {/* Token usage */}
         {tokenUsage && (
-          <div className="flex items-center gap-4 text-sm text-secondary-600 dark:text-secondary-400">
+          <div className="flex-shrink-0 flex items-center gap-4 text-sm text-secondary-600 dark:text-secondary-400">
             <div className="flex items-center gap-1">
               <span className="font-medium">Tokens:</span>
               <span>{tokenUsage.total_tokens.toLocaleString()}</span>
@@ -150,18 +150,18 @@ export function ExtractStep({ extraction }: ExtractStepProps) {
         )}
 
         {/* Extracted data display */}
-        <div className="border border-secondary-200 dark:border-secondary-700 rounded-lg overflow-hidden">
-          <div className="bg-secondary-50 dark:bg-secondary-800 px-4 py-2 border-b border-secondary-200 dark:border-secondary-700">
+        <div className="border border-secondary-200 dark:border-secondary-700 rounded-lg overflow-hidden flex-1 flex flex-col">
+          <div className="bg-secondary-50 dark:bg-secondary-800 px-4 py-2 border-b border-secondary-200 dark:border-secondary-700 flex-shrink-0">
             <h4 className="text-sm font-medium text-secondary-700 dark:text-secondary-300">
               Extracted Data
             </h4>
           </div>
-          <div className="p-4 max-h-[400px] overflow-y-auto">
+          <div className="p-4 overflow-y-auto flex-1" style={{ maxHeight: 'calc(100vh - 320px)' }}>
             <DataDisplay data={extractedData} />
           </div>
         </div>
 
-        <p className="text-sm text-secondary-500 dark:text-secondary-400 text-center">
+        <p className="flex-shrink-0 text-sm text-secondary-500 dark:text-secondary-400 text-center py-2">
           Click &quot;Next&quot; to save or export the extracted data
         </p>
       </div>

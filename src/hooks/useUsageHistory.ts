@@ -25,7 +25,7 @@ const QUERY_KEYS = {
   usageSummary: () => ['usage', 'summary'],
   subscription: () => ['usage', 'subscription'],
   limits: () => ['usage', 'limits'],
-  breakdown: () => ['usage', 'breakdown'],
+  breakdown: (period: UsagePeriod) => ['usage', 'breakdown', period],
 };
 
 /**
@@ -94,13 +94,14 @@ export const useQuotaLimits = (enabled = true) => {
 
 /**
  * Hook to fetch usage breakdown by feature
+ * @param period - Time period: '7d', '14d', '21d', '28d', '30d', or '90d'
  * @param enabled - Whether to enable the query
  * @returns Query result with feature breakdown
  */
-export const useUsageBreakdown = (enabled = true) => {
+export const useUsageBreakdown = (period: UsagePeriod = '7d', enabled = true) => {
   return useQuery<UsageSummaryResponse>({
-    queryKey: QUERY_KEYS.breakdown(),
-    queryFn: () => usageApi.getBreakdown(),
+    queryKey: QUERY_KEYS.breakdown(period),
+    queryFn: () => usageApi.getBreakdown(period),
     enabled,
     staleTime: STALE_TIME,
     refetchInterval: REFETCH_INTERVAL,
@@ -119,7 +120,7 @@ export const useUsageDashboard = (period: UsagePeriod = '7d', enabled = true) =>
   const subscription = useSubscription(enabled);
   const limits = useQuotaLimits(enabled);
   const history = useUsageHistory(period, enabled);
-  const breakdown = useUsageBreakdown(enabled);
+  const breakdown = useUsageBreakdown(period, enabled);
 
   return {
     summary,

@@ -248,25 +248,25 @@ function StatusBar({ label, count, total, color }: StatusBarProps) {
   );
 }
 
-// Helper functions
+// Helper functions - using brand colors for consistency with logo
 function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
     completed: 'bg-green-500',
-    processing: 'bg-blue-500',
-    pending: 'bg-yellow-500',
+    processing: 'bg-brand-cyan-500',
+    pending: 'bg-brand-coral-500',
     failed: 'bg-red-500',
   };
-  return colors[status.toLowerCase()] || 'bg-secondary-500';
+  return colors[status.toLowerCase()] || 'bg-brand-cyan-500';
 }
 
 function getGenerationColor(type: string): string {
   const colors: Record<string, string> = {
-    summary: 'bg-blue-500',
-    faqs: 'bg-purple-500',
+    summary: 'bg-brand-cyan-500',
+    faqs: 'bg-brand-navy-500',
     questions: 'bg-green-500',
-    all: 'bg-orange-500',
+    all: 'bg-brand-coral-500',
   };
-  return colors[type.toLowerCase()] || 'bg-secondary-500';
+  return colors[type.toLowerCase()] || 'bg-brand-cyan-500';
 }
 
 function formatGenerationType(type: string): string {

@@ -20,6 +20,8 @@ export interface UsageHistoryResponse {
   history: UsageHistoryItem[];
   total_tokens: number;
   total_cost_usd: number;
+  // Feature breakdown for the selected period (optional, requires backend support)
+  feature_breakdown?: UsageBreakdownItem[];
   error?: string;
 }
 

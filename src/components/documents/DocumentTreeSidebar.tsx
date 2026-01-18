@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDoubleLeftIcon,
@@ -160,6 +160,9 @@ export default function DocumentTreeSidebar({
   const [isOrgExpanded, setIsOrgExpanded] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Ref for the sidebar element to calculate resize offset
+  const sidebarRef = useRef<HTMLElement>(null);
+
   // Cache document IDs per folder for auto-select on folder checkbox click
   const [folderDocumentIds, setFolderDocumentIds] = useState<Record<string, string[]>>({});
 
@@ -204,8 +207,14 @@ export default function DocumentTreeSidebar({
 
     const handleMouseMove = (e: MouseEvent) => {
       e.preventDefault();
-      const newWidth = Math.min(maxWidth, Math.max(minWidth, e.clientX));
-      onWidthChange(newWidth);
+
+      // Calculate width relative to sidebar's left edge
+      if (sidebarRef.current) {
+        const sidebarRect = sidebarRef.current.getBoundingClientRect();
+        const newWidth = e.clientX - sidebarRect.left;
+        const constrainedWidth = Math.min(maxWidth, Math.max(minWidth, newWidth));
+        onWidthChange(constrainedWidth);
+      }
     };
 
     const handleMouseUp = () => {
@@ -280,6 +289,7 @@ export default function DocumentTreeSidebar({
 
   return (
     <motion.aside
+      ref={sidebarRef}
       initial={false}
       animate={{ width: sidebarWidth }}
       transition={{ duration: isDragging ? 0 : 0.2, ease: 'easeInOut' }}
@@ -290,13 +300,27 @@ export default function DocumentTreeSidebar({
       {!isCollapsed && (
         <div
           onMouseDown={handleDragStart}
-          className={`absolute right-0 top-0 h-full w-1 cursor-col-resize z-10
-                     transition-colors duration-150
+          className={`absolute -right-2 top-0 h-full w-5 cursor-col-resize z-20 group
+                     transition-all duration-150 flex items-center justify-center
                      ${isDragging
-                       ? 'bg-primary-500 dark:bg-primary-400'
-                       : 'hover:bg-primary-400 dark:hover:bg-primary-500 bg-transparent'}`}
-          title="Drag to resize"
-        />
+                       ? 'bg-primary-500/20 dark:bg-primary-400/20'
+                       : 'hover:bg-primary-400/10 dark:hover:bg-primary-500/10 bg-transparent'}`}
+          title="Drag to resize sidebar"
+        >
+          {/* Visual resize indicator - more prominent */}
+          <div className={`w-1.5 h-16 rounded-full transition-all duration-150 shadow-sm
+                          ${isDragging
+                            ? 'bg-primary-500 dark:bg-primary-400 scale-110 h-24'
+                            : 'bg-secondary-400 dark:bg-secondary-500 group-hover:bg-primary-500 dark:group-hover:bg-primary-400 group-hover:h-24 group-hover:w-2'}`}
+          />
+          {/* Grip dots for better visibility on hover */}
+          <div className={`absolute flex flex-col gap-1.5 transition-opacity duration-150
+                          ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            <div className="w-1 h-1 bg-white dark:bg-gray-900 rounded-full" />
+            <div className="w-1 h-1 bg-white dark:bg-gray-900 rounded-full" />
+            <div className="w-1 h-1 bg-white dark:bg-gray-900 rounded-full" />
+          </div>
+        </div>
       )}
 
       {/* Sidebar Header */}
@@ -465,10 +489,9 @@ export default function DocumentTreeSidebar({
           <button
             onClick={onCreateFolder}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium
-                       rounded-lg border border-dashed border-secondary-300 dark:border-secondary-600
-                       text-secondary-600 dark:text-secondary-400
-                       hover:border-primary-500 hover:text-primary-600
-                       dark:hover:border-primary-400 dark:hover:text-primary-400
+                       rounded-lg bg-brand-cyan-500 text-white
+                       hover:bg-brand-cyan-600
+                       dark:bg-brand-cyan-500 dark:hover:bg-brand-cyan-600
                        transition-colors"
           >
             <PlusIcon className="w-4 h-4" />

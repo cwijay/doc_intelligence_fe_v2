@@ -7,7 +7,7 @@ import { InsightsPeriod, INSIGHTS_PERIODS, JobStatus, ActivityQueryParams, JobsQ
 import { InsightsDashboard, InsightsDashboardSkeleton } from './InsightsDashboard';
 import { ActivityTimeline, ActivityTimelineSkeleton } from './ActivityTimeline';
 import { JobsTable, JobsTableSkeleton } from './JobsTable';
-import Navbar from '@/components/layout/Navbar';
+import { AppLayout } from '@/components/layout';
 import {
   ChartBarIcon,
   ClockIcon,
@@ -67,49 +67,7 @@ export function InsightsPage() {
   // Error state
   if (isDashboardError && activeTab === 'overview') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-7xl mx-auto">
-            {/* Breadcrumb Navigation */}
-            <nav className="flex items-center space-x-2 text-sm text-secondary-600 dark:text-secondary-400 mb-6">
-              <Link
-                href="/dashboard"
-                className="flex items-center space-x-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200"
-              >
-                <HomeIcon className="w-4 h-4" />
-                <span>Dashboard</span>
-              </Link>
-              <ChevronLeftIcon className="w-4 h-4 rotate-180" />
-              <span className="text-secondary-900 dark:text-secondary-100 font-medium">Insights</span>
-            </nav>
-
-            <PageHeader period={period} onPeriodChange={setPeriod} />
-            <div className="mt-8 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-8 text-center">
-              <p className="text-red-800 dark:text-red-200 font-medium">
-                Failed to load insights data
-              </p>
-              <p className="text-red-600 dark:text-red-400 text-sm mt-1">
-                Please try refreshing the page or contact support if the issue persists.
-              </p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
-              >
-                <ArrowPathIcon className="w-4 h-4" />
-                Refresh Page
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700">
-      <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <AppLayout>
         <div className="max-w-7xl mx-auto">
           {/* Breadcrumb Navigation */}
           <nav className="flex items-center space-x-2 text-sm text-secondary-600 dark:text-secondary-400 mb-6">
@@ -124,8 +82,45 @@ export function InsightsPage() {
             <span className="text-secondary-900 dark:text-secondary-100 font-medium">Insights</span>
           </nav>
 
-          {/* Page Header */}
           <PageHeader period={period} onPeriodChange={setPeriod} />
+          <div className="mt-8 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-8 text-center">
+            <p className="text-red-800 dark:text-red-200 font-medium">
+              Failed to load insights data
+            </p>
+            <p className="text-red-600 dark:text-red-400 text-sm mt-1">
+              Please try refreshing the page or contact support if the issue persists.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
+            >
+              <ArrowPathIcon className="w-4 h-4" />
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <div className="max-w-7xl mx-auto">
+        {/* Breadcrumb Navigation */}
+        <nav className="flex items-center space-x-2 text-sm text-secondary-600 dark:text-secondary-400 mb-6">
+          <Link
+            href="/dashboard"
+            className="flex items-center space-x-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200"
+          >
+            <HomeIcon className="w-4 h-4" />
+            <span>Dashboard</span>
+          </Link>
+          <ChevronLeftIcon className="w-4 h-4 rotate-180" />
+          <span className="text-secondary-900 dark:text-secondary-100 font-medium">Insights</span>
+        </nav>
+
+        {/* Page Header */}
+        <PageHeader period={period} onPeriodChange={setPeriod} />
 
           {/* Tabs */}
           <div className="mt-6 border-b border-secondary-200 dark:border-secondary-700">
@@ -236,13 +231,12 @@ export function InsightsPage() {
             )}
           </div>
 
-          {/* Auto-refresh indicator */}
-          <div className="mt-6 text-center text-xs text-secondary-500 dark:text-secondary-400">
-            Auto-refreshes every 30 seconds
-          </div>
+        {/* Auto-refresh indicator */}
+        <div className="mt-6 text-center text-xs text-secondary-500 dark:text-secondary-400">
+          Auto-refreshes every 30 seconds
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 

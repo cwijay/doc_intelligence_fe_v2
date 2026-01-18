@@ -20,18 +20,18 @@ interface QuestionsContentProps {
 
 export function QuestionsContent({ data, expandedItems, toggleExpanded }: QuestionsContentProps) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-secondary-900">Comprehension Questions</h3>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between flex-shrink-0 mb-4">
+        <h3 className="text-lg font-semibold text-secondary-900 dark:text-white">Comprehension Questions</h3>
         {data.questions && data.questions.length > 0 && (
-          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-sm">
+          <span className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 px-2 py-1 rounded-full text-sm">
             {data.questions.length} questions
           </span>
         )}
       </div>
 
       {data.questions && data.questions.length > 0 ? (
-        <div className="space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
           {data.questions.map((questionObj, index) => (
             <div key={index} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg overflow-hidden">
               <div
@@ -91,9 +91,11 @@ export function QuestionsContent({ data, expandedItems, toggleExpanded }: Questi
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-secondary-500">
-          <QuestionMarkCircleIcon className="w-12 h-12 mx-auto mb-2" />
-          <p>No questions available</p>
+        <div className="flex-1 flex items-center justify-center text-secondary-500">
+          <div className="text-center">
+            <QuestionMarkCircleIcon className="w-12 h-12 mx-auto mb-2" />
+            <p>No questions available</p>
+          </div>
         </div>
       )}
     </div>

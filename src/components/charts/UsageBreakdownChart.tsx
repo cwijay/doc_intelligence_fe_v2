@@ -1,6 +1,7 @@
 'use client';
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, PieLabelRenderProps } from 'recharts';
+import { Props as LegendProps } from 'recharts/types/component/DefaultLegendContent';
 import { UsageBreakdownItem } from '@/types/usage';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
@@ -41,21 +42,21 @@ export function UsageBreakdownChart({ data, height = 280 }: UsageBreakdownChartP
   };
 
   // Custom label
-  const renderCustomLabel = ({
-    cx,
-    cy,
-    midAngle,
-    innerRadius,
-    outerRadius,
-    percent,
-  }: {
-    cx: number;
-    cy: number;
-    midAngle: number;
-    innerRadius: number;
-    outerRadius: number;
-    percent: number;
-  }) => {
+  const renderCustomLabel = (props: PieLabelRenderProps) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
+
+    // Handle undefined values
+    if (
+      typeof cx !== 'number' ||
+      typeof cy !== 'number' ||
+      typeof midAngle !== 'number' ||
+      typeof innerRadius !== 'number' ||
+      typeof outerRadius !== 'number' ||
+      typeof percent !== 'number'
+    ) {
+      return null;
+    }
+
     // Only show label if percentage is > 5%
     if (percent < 0.05) return null;
 
@@ -79,7 +80,7 @@ export function UsageBreakdownChart({ data, height = 280 }: UsageBreakdownChartP
   };
 
   // Custom legend
-  const renderLegend = (props: { payload?: Array<{ value: string; color: string }> }) => {
+  const renderLegend = (props: LegendProps) => {
     const { payload } = props;
     if (!payload) return null;
 
@@ -113,7 +114,7 @@ export function UsageBreakdownChart({ data, height = 280 }: UsageBreakdownChartP
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
         <Pie
-          data={data}
+          data={data as unknown as Array<Record<string, unknown>>}
           cx="50%"
           cy="45%"
           labelLine={false}

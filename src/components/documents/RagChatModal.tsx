@@ -23,7 +23,7 @@ import {
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react';
 import Button from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { RagMessage, GeminiSearchMode, SearchHistoryItem } from '@/types/rag';
+import { RagMessage, SearchHistoryItem } from '@/types/rag';
 import { Document, Folder } from '@/types/api';
 import { formatSearchStrategy, getConfidenceColor, getConfidenceLabel } from '@/lib/api/rag';
 import { formatDistanceToNow } from 'date-fns';
@@ -34,13 +34,14 @@ interface RagChatModalProps {
   onClose: () => void;
   messages: RagMessage[];
   isLoading: boolean;
+  isStreaming?: boolean;           // Whether currently streaming tokens
+  streamingStatus?: string | null; // Status message during streaming
   error: string | null;
   currentDocument: Document | null;
   currentDocuments?: Document[];
 
   // Configuration
   maxSources: number;
-  searchMode: GeminiSearchMode;
   folderFilter: string | null;
   fileFilter: string | null;
 
@@ -51,7 +52,7 @@ interface RagChatModalProps {
   folders?: Folder[];
 
   // Actions
-  onSendMessage: (query: string, options?: { searchMode?: GeminiSearchMode; folderName?: string; fileFilter?: string; maxSources?: number }) => Promise<void>;
+  onSendMessage: (query: string, options?: { folderName?: string; fileFilter?: string; maxSources?: number }) => Promise<void>;
   onClearChat: () => void;
   onRetry: () => Promise<void>;
   onViewHistoryItem: (item: SearchHistoryItem) => void;
@@ -59,7 +60,6 @@ interface RagChatModalProps {
 
   // Configuration setters
   onSetMaxSources: (count: number) => void;
-  onSetSearchMode: (mode: GeminiSearchMode) => void;
   onSetFolderFilter: (folder: string | null) => void;
   onSetFileFilter: (file: string | null) => void;
 }
@@ -80,11 +80,12 @@ export default function RagChatModal({
   onClose,
   messages,
   isLoading,
+  isStreaming = false,
+  streamingStatus = null,
   error,
   currentDocument,
   currentDocuments = [],
   maxSources,
-  searchMode,
   folderFilter,
   fileFilter,
   searchHistory,
@@ -95,7 +96,6 @@ export default function RagChatModal({
   onViewHistoryItem,
   onClearHistory,
   onSetMaxSources,
-  onSetSearchMode,
   onSetFolderFilter,
   onSetFileFilter,
 }: RagChatModalProps) {
@@ -125,9 +125,8 @@ export default function RagChatModal({
     const queryToSend = query.trim();
     setQuery('');
 
-    // Use unified DocumentAgent chat
+    // Use unified DocumentAgent chat with hybrid search
     await onSendMessage(queryToSend, {
-      searchMode,
       folderName: folderFilter || undefined,
       fileFilter: localFileFilter || undefined,
       maxSources,
@@ -239,11 +238,11 @@ export default function RagChatModal({
                   </div>
                 )}
                 
-                {message.metadata.confidence_score !== undefined && (
+                {message.metadata.confidence_score !== undefined && message.metadata.confidence_score > 0 && (
                   <div className="flex items-center gap-1">
                     <div className={clsx(
                       "w-2 h-2 rounded-full",
-                      message.metadata.confidence_score >= 0.8 ? "bg-green-500" : 
+                      message.metadata.confidence_score >= 0.8 ? "bg-green-500" :
                       message.metadata.confidence_score >= 0.6 ? "bg-yellow-500" : "bg-red-500"
                     )} />
                     <span className={getConfidenceColor(message.metadata.confidence_score)}>
@@ -403,7 +402,7 @@ export default function RagChatModal({
                   <div className="mt-4 flex items-center gap-4 text-xs text-secondary-600">
                     <span className="flex items-center gap-1 text-purple-600">
                       <MagnifyingGlassIcon className="w-3 h-3" />
-                      {searchMode.charAt(0).toUpperCase() + searchMode.slice(1)} Search
+                      Hybrid Search
                     </span>
                     {folderFilter ? (
                       <span className="flex items-center gap-1 text-blue-600">
@@ -424,29 +423,6 @@ export default function RagChatModal({
                 {/* Search Options with Filters */}
                 <div className="border-t border-secondary-200 px-6 py-4 bg-secondary-50">
                   <div className="space-y-4">
-                    {/* Search Mode Toggle */}
-                    <div>
-                      <label className="block text-xs font-medium text-secondary-700 mb-2">
-                        Search Mode
-                      </label>
-                      <div className="flex space-x-2">
-                        {(['semantic', 'keyword', 'hybrid'] as GeminiSearchMode[]).map((mode) => (
-                          <button
-                            key={mode}
-                            onClick={() => onSetSearchMode(mode)}
-                            className={clsx(
-                              'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                              searchMode === mode
-                                ? 'bg-primary-600 text-white'
-                                : 'bg-white border border-secondary-300 text-secondary-700 hover:bg-secondary-100'
-                            )}
-                          >
-                            {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
                     {/* Filters Row */}
                     <div className="flex items-end space-x-4">
                       {/* Folder Filter */}
@@ -559,9 +535,6 @@ export default function RagChatModal({
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 mt-0.5 text-secondary-500">
-                                <span className="bg-secondary-100 px-1 rounded">
-                                  {item.filters.searchMode}
-                                </span>
                                 {item.filters.folder && (
                                   <span className="truncate">
                                     <FolderIcon className="w-3 h-3 inline" /> {item.filters.folder}
@@ -611,7 +584,8 @@ export default function RagChatModal({
                   
                   {messages.map(renderMessage)}
                   
-                  {isLoading && (
+                  {/* Streaming/Loading indicator */}
+                  {(isLoading || isStreaming) && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -619,10 +593,25 @@ export default function RagChatModal({
                     >
                       <div className="bg-white border border-secondary-200 rounded-lg px-4 py-3 shadow-sm">
                         <div className="flex items-center space-x-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
-                          <span className="text-sm text-secondary-600">
-                            Getting your answer (5-10s)...
-                          </span>
+                          {isStreaming ? (
+                            <>
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                              </div>
+                              <span className="text-sm text-secondary-600">
+                                {streamingStatus || 'Generating...'}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
+                              <span className="text-sm text-secondary-600">
+                                Getting your answer (5-10s)...
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </motion.div>

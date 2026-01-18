@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Document, DocumentParseResponse } from '@/types/api';
 import { documentsApi, foldersApi, organizationsApi } from '@/lib/api/index';
@@ -10,9 +11,10 @@ import { adaptIngestParseResponse } from '@/lib/api/utils/parse-adapter';
 import { fileUtils } from '@/lib/file-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { clientConfig } from '@/lib/config';
+import { storeParseResultsForNavigation } from '@/hooks/useParseResultsPage';
 import toast from 'react-hot-toast';
 
-interface UseDocumentActionsReturn {
+export interface DocumentActionsReturn {
   // Document actions
   handleDelete: (document: Document) => void;
   handleParse: (document: Document) => Promise<void>;
@@ -26,37 +28,96 @@ interface UseDocumentActionsReturn {
   parsingDocuments: Set<string>;
   loadingParsedDocuments: Set<string>;
 
-  // Parse modal state
+  // Parse panel state (for inline panel mode)
   selectedDocumentForParse: Document | null;
   parseData: DocumentParseResponse | null;
+  isParsePanelOpen: boolean;
+  closeParsePanelAction: () => void;
+  openParsePanelAction: (document: Document, parseData: DocumentParseResponse) => void;
+
+  // Legacy modal state (kept for backward compatibility)
   isParseModalOpen: boolean;
   handleSaveParsedContent: (editedContent: string) => Promise<void>;
   closeParseModal: () => void;
   openParseModal: (document: Document, parseData: DocumentParseResponse) => void;
 
+  // Navigate to parse page (for full-page mode)
+  navigateToParsePage: (document: Document, parseData: DocumentParseResponse) => void;
+
+  // Set parse result handler - controls whether to open panel or navigate
+  setOnParseComplete: (callback: (document: Document, parseData: DocumentParseResponse) => void) => void;
+
   // Excel chat callback - will be set by DocumentsTab
   setOnExcelChat: (callback: (documents: Document[]) => void) => void;
 }
 
-export function useDocumentActions(): UseDocumentActionsReturn {
+export function useDocumentActions(): DocumentActionsReturn {
+  const router = useRouter();
+
   // Parsing state management
   const [parsingDocuments, setParsingDocuments] = useState<Set<string>>(new Set());
   const [loadingParsedDocuments, setLoadingParsedDocuments] = useState<Set<string>>(new Set());
-  
-  // Parse modal state
+
+  // Parse panel state
   const [selectedDocumentForParse, setSelectedDocumentForParse] = useState<Document | null>(null);
   const [parseData, setParseData] = useState<DocumentParseResponse | null>(null);
+  const [isParsePanelOpen, setIsParsePanelOpen] = useState(false);
+
+  // Legacy modal state (kept for backward compatibility)
   const [isParseModalOpen, setIsParseModalOpen] = useState(false);
-  
+
   // Excel chat callback ref (using useRef to avoid re-renders and state updates)
   const onExcelChatRef = useRef<((documents: Document[]) => void) | undefined>(undefined);
 
   // RAG chat callback ref (using useRef to avoid re-renders and state updates)
   const onRagChatRef = useRef<((document: Document) => void) | undefined>(undefined);
-  
+
+  // Parse complete callback ref - controls what happens after parsing
+  const onParseCompleteRef = useRef<((document: Document, parseData: DocumentParseResponse) => void) | undefined>(undefined);
+
   // Hooks for user context and query client
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Set parse complete handler
+  const setOnParseComplete = useCallback((callback: (document: Document, parseData: DocumentParseResponse) => void) => {
+    onParseCompleteRef.current = callback;
+  }, []);
+
+  // Open parse panel (inline mode)
+  const openParsePanelAction = useCallback((document: Document, parseResponse: DocumentParseResponse) => {
+    console.log('📄 Opening parse panel:', {
+      documentId: document.id,
+      documentName: document.name
+    });
+    setSelectedDocumentForParse(document);
+    setParseData(parseResponse);
+    setIsParsePanelOpen(true);
+  }, []);
+
+  // Close parse panel
+  const closeParsePanelAction = useCallback(() => {
+    setIsParsePanelOpen(false);
+    // Don't clear the document/parseData immediately to allow for animations
+    setTimeout(() => {
+      setSelectedDocumentForParse(null);
+      setParseData(null);
+    }, 300);
+  }, []);
+
+  // Navigate to parse page (full-page mode)
+  const navigateToParsePage = useCallback((document: Document, parseResponse: DocumentParseResponse) => {
+    // Store parse results in sessionStorage before navigation
+    storeParseResultsForNavigation(document.id, document, parseResponse);
+
+    console.log('🚀 Navigating to parse page:', {
+      documentId: document.id,
+      documentName: document.name
+    });
+
+    // Navigate to the parse page
+    router.push(`/documents/${document.id}/parse`);
+  }, [router]);
 
   const handleDelete = useCallback(async (document: Document) => {
     if (!document?.id) {
@@ -179,10 +240,13 @@ export function useDocumentActions(): UseDocumentActionsReturn {
         });
       }
 
-      // Open modal with parsed content AFTER successful parsing
-      setSelectedDocumentForParse(document);
-      setParseData(parseResponse);
-      setIsParseModalOpen(true);
+      // Call the parse complete handler or navigate to full page
+      if (onParseCompleteRef.current) {
+        onParseCompleteRef.current(document, parseResponse);
+      } else {
+        // Default: navigate to full parse page for maximum screen space
+        navigateToParsePage(document, parseResponse);
+      }
 
     } catch (error) {
       console.error('Parse error:', error);
@@ -200,7 +264,7 @@ export function useDocumentActions(): UseDocumentActionsReturn {
         return newSet;
       });
     }
-  }, [user, queryClient]);
+  }, [user, queryClient, navigateToParsePage]);
 
   /**
    * Load pre-parsed content from GCS for documents that have already been parsed
@@ -251,13 +315,17 @@ export function useDocumentActions(): UseDocumentActionsReturn {
         return newSet;
       });
 
-      // Open the parse modal with loaded content
-      setSelectedDocumentForParse(document);
-      setParseData(response);
-      setIsParseModalOpen(true);
+      // Call the parse complete handler or navigate to full page
+      if (onParseCompleteRef.current) {
+        onParseCompleteRef.current(document, response);
+      } else {
+        // Default: navigate to full parse page for maximum screen space
+        navigateToParsePage(document, response);
+      }
 
     } catch (error) {
       console.error('Load parsed error:', error);
+
       const errorMessage = error instanceof Error ? error.message : 'Failed to load parsed content';
 
       toast.dismiss(`load-parsed-${document.id}`);
@@ -269,7 +337,7 @@ export function useDocumentActions(): UseDocumentActionsReturn {
         return newSet;
       });
     }
-  }, [user]);
+  }, [user, navigateToParsePage]);
 
   const handleChat = useCallback((document: Document) => {
     console.log('🔍 handleChat called for document:', {
@@ -479,13 +547,24 @@ export function useDocumentActions(): UseDocumentActionsReturn {
     parsingDocuments,
     loadingParsedDocuments,
 
-    // Parse modal state
+    // Parse panel state (for inline panel mode)
     selectedDocumentForParse,
     parseData,
+    isParsePanelOpen,
+    closeParsePanelAction,
+    openParsePanelAction,
+
+    // Legacy modal state (kept for backward compatibility)
     isParseModalOpen,
     handleSaveParsedContent,
     closeParseModal,
     openParseModal,
+
+    // Navigate to parse page (for full-page mode)
+    navigateToParsePage,
+
+    // Set parse complete handler
+    setOnParseComplete,
 
     // Excel chat callback setter
     setOnExcelChat: useCallback((callback: (documents: Document[]) => void) => {

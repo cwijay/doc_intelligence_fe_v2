@@ -15,6 +15,7 @@ import {
   ArrowDownTrayIcon,
   TrashIcon,
   CloudArrowDownIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 import {
@@ -51,6 +52,7 @@ interface DocumentCardActionsProps {
   onExtract?: () => void;
   onView?: () => void;
   onDownload?: () => void;
+  onRename?: () => void;
   onDelete?: () => void;
 }
 
@@ -67,6 +69,7 @@ export function DocumentCardActions({
   onExtract,
   onView,
   onDownload,
+  onRename,
   onDelete,
 }: DocumentCardActionsProps) {
   const primaryActions: ActionItem[] = [];
@@ -233,6 +236,20 @@ export function DocumentCardActions({
       },
       color: 'text-gray-500',
       bgColor: 'hover:bg-gray-50',
+    });
+  }
+
+  if (onRename) {
+    secondaryActions.push({
+      icon: PencilSquareIcon,
+      label: 'Rename',
+      onClick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onRename();
+      },
+      color: 'text-blue-500',
+      bgColor: 'hover:bg-blue-50',
     });
   }
 

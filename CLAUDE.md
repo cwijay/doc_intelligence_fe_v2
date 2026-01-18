@@ -83,10 +83,21 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 - `src/app/` - Next.js app router pages with protected routes
   - `api/ai/` - Next.js API routes for AI proxy
   - `api/documents/` - Next.js API routes for document content
+  - `documents/[documentId]/` - Dynamic document routes for AI features:
+    - `summary/` - Full-page AI summary view
+    - `faq/` - Full-page AI FAQ view
+    - `questions/` - Full-page AI questions view
+    - `chat/` - Full-page RAG document chat
+    - `excel-chat/` - Full-page Excel analysis chat
+    - `parse/` - Document parsing and editing
+    - `extract/` - Data extraction wizard
   - `insights/` - Insights/audit dashboard page
   - `usage/` - Usage tracking page
 - `src/components/` - Reusable UI components organized by feature
-  - `documents/ai-modal/` - Modular AI content modal components
+  - `documents/ai-modal/` - AI content views (SummaryView, FAQView, QuestionsView)
+  - `documents/ai-content/` - Full-page AI content components (AIContentPage, AIContentHeader)
+  - `documents/chat/` - Full-page document chat (ChatPage)
+  - `documents/excel-chat/` - Full-page Excel analysis chat (ExcelChatPage)
   - `documents/ai-progress/` - AI progress toast factory (replaces individual toast components)
   - `documents/card/` - Reusable document card components
   - `editors/` - Rich text editor (TipTap-based)
@@ -127,6 +138,13 @@ Protected routes require authentication:
 - `/organizations` - Organization management
 - `/users` - User management (admin-only)
 - `/documents` - Document library with AI features
+- `/documents/[documentId]/summary` - Full-page AI summary view
+- `/documents/[documentId]/faq` - Full-page AI FAQ view
+- `/documents/[documentId]/questions` - Full-page AI questions view
+- `/documents/[documentId]/chat` - Full-page RAG document chat
+- `/documents/[documentId]/excel-chat` - Full-page Excel analysis chat
+- `/documents/[documentId]/parse` - Document parsing and editing
+- `/documents/[documentId]/extract` - Data extraction wizard
 - `/folders` - Folder management
 - `/insights` - Audit and analytics dashboard (processing jobs, activity timeline)
 - `/usage` - Usage tracking and quota management (subscription tiers)
@@ -157,19 +175,24 @@ Protected routes require authentication:
 - `src/hooks/useProfile.ts` - Profile data management with API fallback pattern
 - `src/hooks/ai/` - Modular AI hooks (useSummaryGeneration, useFAQGeneration, useQuestionsGeneration, useDocumentAI)
 - `src/hooks/ai/useAIGeneration.ts` - Generic AI generation hook (factory pattern, reduces duplication)
+- `src/hooks/ai/useAIContentPage.ts` - Page state for full-page AI content views (summary, FAQ, questions)
 - `src/hooks/ai/types.ts` - AI generation type definitions
-- `src/hooks/rag/` - RAG hooks (useRagChatConfig, useRagChatSession, useSearchHistory)
+- `src/hooks/rag/` - RAG hooks (useRagChatConfig, useRagChatSession, useSearchHistory, useChatPage)
+- `src/hooks/useExcelChatPage.ts` - Page state for Excel chat full-page view
 - `src/hooks/useInsights.ts` - Insights dashboard hooks with 30s auto-refresh
 - `src/hooks/useTiers.ts` - Subscription tiers hook (public endpoint, 10min cache)
 - `src/hooks/useUsageHistory.ts` - Usage tracking hooks (summary, limits, breakdown)
-- `src/hooks/useAIModalState.ts` - Shared state management for AI content modals
+- `src/hooks/useAIModalState.ts` - Shared state management for AI content views
 - `src/hooks/useSidebarState.ts` - Sidebar collapse/expand state
 - `src/hooks/useTreeSelection.ts` - Folder tree selection state
 - `src/hooks/useDocumentSelection.ts` - Shared document selection with shift-click range support
 
 ### Components
 - `src/components/guards/AuthGuard.tsx` - Route protection component
-- `src/components/documents/ai-modal/` - Modular AI modal views (SummaryView, FAQView, QuestionsView, DocumentAIContentModal)
+- `src/components/documents/ai-modal/` - AI content views (SummaryView, FAQView, QuestionsView)
+- `src/components/documents/ai-content/` - Full-page AI content (AIContentPage, AIContentHeader)
+- `src/components/documents/chat/ChatPage.tsx` - Full-page RAG document chat
+- `src/components/documents/excel-chat/ExcelChatPage.tsx` - Full-page Excel analysis chat
 - `src/components/documents/ai-progress/AIProgressToast.tsx` - Progress toast factory (replaces individual toast components)
 - `src/components/documents/card/` - Reusable document card components
 - `src/components/documents/DocumentTreeLayout.tsx` - Tree-based document browser
@@ -366,25 +389,55 @@ The `useDocumentAI` hook manages all AI-powered document features:
 - **Regenerate**: `handleQuestionsRegenerate(options)`
 - **Response**: `AIQuestionsResponse` with `questions[]`, `difficulty_distribution`, `cached`
 
-### Unified AI Content Modal
+### Full-Page AI Content Views
 
-#### DocumentAIContentModal (`src/components/documents/DocumentAIContentModal.tsx`)
-Consolidates Summary, FAQ, and Questions modals into a single reusable component.
+All AI features have been converted from modals to full-page views for better UX with maximum screen real estate.
 
-- **Content Types**: `'summary' | 'faq' | 'questions'`
-- **Features**: Three-tab interface (Content, Analysis, Options)
-- **Regeneration Options**:
-  - Summary: length (short/medium/long), format (bullets/paragraphs/executive)
-  - FAQ: question_count, depth (basic/intermediate/advanced), format
-  - Questions: question_count (1-20), custom prompt
-- **Display Features**:
-  - Expandable FAQ/Questions cards with chevron toggle
-  - Markdown rendering with syntax highlighting
-  - Difficulty badges for questions (easy/medium/hard)
-  - Cache status and processing time indicators
+#### AI Content Pages
+
+**Summary, FAQ, Questions** (`src/components/documents/ai-content/`):
+- `AIContentPage.tsx` - Main full-page component for all three content types
+- `AIContentHeader.tsx` - Header with back button, breadcrumbs, and status badges
+
+**Document Chat** (`src/components/documents/chat/`):
+- `ChatPage.tsx` - Full-page RAG document chat with hybrid search, folder/file filters
+
+**Excel Chat** (`src/components/documents/excel-chat/`):
+- `ExcelChatPage.tsx` - Full-page Excel/spreadsheet analysis chat with markdown tables
+
+#### Routes
+- `/documents/[documentId]/summary` - AI-generated summaries
+- `/documents/[documentId]/faq` - AI-generated FAQs
+- `/documents/[documentId]/questions` - AI-generated questions
+- `/documents/[documentId]/chat` - RAG document chat
+- `/documents/[documentId]/excel-chat` - Excel analysis chat
+
+#### Page State Hooks
+- `useAIContentPage()` (`src/hooks/ai/useAIContentPage.ts`) - Page state for Summary/FAQ/Questions
+  - SessionStorage context management with `storeAIContentContext()` helper
+  - Document and folder resolution
+  - Back navigation handling
+- `useChatPage()` (`src/hooks/rag/useChatPage.ts`) - Page state for RAG chat
+  - SessionStorage context with `storeChatContext()` helper
+- `useExcelChatPage()` (`src/hooks/useExcelChatPage.ts`) - Page state for Excel chat
+  - SessionStorage context with `storeExcelChatContext()` helper
+
+#### Content Types: `'summary' | 'faq' | 'questions'`
+
+**Features**:
+- Three-tab interface (Content, Analysis, Options)
+- Regeneration with customizable options
+- Cache status and processing time indicators
+- Expandable cards with markdown rendering
+- Difficulty badges for questions (easy/medium/hard)
+
+**Regeneration Options**:
+- Summary: length (short/medium/long), format (bullets/paragraphs/executive)
+- FAQ: question_count, depth (basic/intermediate/advanced), format
+- Questions: question_count (1-20), custom prompt
 
 #### useAIModalState Hook (`src/hooks/useAIModalState.ts`)
-Shared hook for managing AI modal state across all content types:
+Shared hook for managing AI content state (used by full-page views):
 - Tab navigation (content/metadata/actions)
 - Edit mode with unsaved changes tracking
 - Regeneration options management
@@ -680,18 +733,23 @@ summaryProgressToast.error(toastId, documentName, message);
 - `useRagChatConfig()` - Search mode and filter configuration
 - `useRagChatSession()` - Chat session state management
 - `useSearchHistory()` - Search history tracking and persistence
+- `useChatPage()` - Page state for full-page document chat
 
 ### UI State Hooks
 - `useSidebarState()` - Sidebar collapse/expand state
 - `useTreeSelection()` - Folder tree selection management
-- `useAIModalState()` - Shared state for AI content modals (tabs, editing, regeneration)
+- `useAIModalState()` - Shared state for AI content views (tabs, editing, regeneration)
+
+### Page State Hooks
+- `useAIContentPage()` - Page state for Summary/FAQ/Questions full-page views
+- `useChatPage()` - Page state for RAG document chat full-page view
+- `useExcelChatPage()` - Page state for Excel chat full-page view
 
 ### Specialized Hooks
 - `useDocumentActions()` - Document operations (parse, save, etc.)
 - `useDocumentUpload()` - Single file upload with progress tracking
 - `useBulkUpload()` - Bulk file upload with job polling (up to 10 files)
 - `useDocumentSelection()` - Shared selection logic for document lists (shift-click range selection)
-- `useExcelChat()` - Excel-specific chat functionality
 - `useFolderActions()` - Folder-specific operations
 - `useAllDocuments()` - Cross-organization document access
 - `useRecentActivity()` - Activity feed management
@@ -791,12 +849,15 @@ chatWithDocuments(request: DocumentChatRequest): Promise<DocumentChatResponse>
 getOrgStore(): Promise<GeminiStoreInfo | null>
 ```
 
-**UI Component** (`src/components/documents/RagChatModal.tsx`):
+**UI Component** (`src/components/documents/chat/ChatPage.tsx`):
+Full-page RAG document chat (replaces RagChatModal):
 - Search mode toggle (Semantic/Keyword/Hybrid buttons)
 - Folder dropdown filter
 - File filter text input
 - Search history panel with view/clear
 - Answer display with citations
+- Streaming response support
+- Back navigation to documents
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.

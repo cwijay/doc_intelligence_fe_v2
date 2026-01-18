@@ -16,7 +16,7 @@ export {
 } from './store-api';
 
 // Re-export document chat
-export { chatWithDocuments } from './document-chat';
+export { chatWithDocuments, chatWithDocumentsStream } from './document-chat';
 
 // Re-export ingestion operations
 export {

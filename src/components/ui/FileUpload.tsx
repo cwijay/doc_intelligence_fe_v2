@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   CloudArrowUpIcon,
   DocumentTextIcon,
   XMarkIcon,
@@ -12,6 +12,7 @@ import {
   FolderIcon,
   ChevronDownIcon,
   TableCellsIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 import Button from './Button';
@@ -25,6 +26,12 @@ interface FileWithProgress extends File {
   progress: number;
   status: 'uploading' | 'completed' | 'error';
   error?: string;
+}
+
+interface PendingFileWithName {
+  file: File;
+  editedName: string; // Name without extension
+  extension: string;  // File extension (e.g., '.pdf')
 }
 
 interface FileUploadProps {
@@ -79,9 +86,11 @@ export default function FileUpload({
   const [files, setFiles] = useState<FileWithProgress[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]); // For bulk mode
+  const [pendingFiles, setPendingFiles] = useState<PendingFileWithName[]>([]); // For bulk mode with editable names
+  const [editingIndex, setEditingIndex] = useState<number | null>(null); // Track which file is being edited
   const fileIdCounter = useRef(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const isBulkMode = mode === 'bulk';
 
@@ -117,15 +126,29 @@ export default function FileUpload({
       }
 
       // Add to pending files (avoid duplicates by name)
-      const existingNames = new Set(pendingFiles.map(f => f.name));
+      const existingNames = new Set(pendingFiles.map(f => f.file.name));
       const newFiles = acceptedFiles.filter(f => !existingNames.has(f.name));
       const duplicateCount = acceptedFiles.length - newFiles.length;
 
       if (duplicateCount > 0) {
-        toast(`${duplicateCount} duplicate file(s) skipped`, { icon: 'i' });
+        toast(`${duplicateCount} duplicate file(s) skipped`, { icon: 'ℹ️' });
       }
 
-      setPendingFiles(prev => [...prev, ...newFiles]);
+      // Convert files to PendingFileWithName with extracted extension
+      const pendingFilesWithNames: PendingFileWithName[] = newFiles.map(file => {
+        const lastDotIndex = file.name.lastIndexOf('.');
+        const hasExtension = lastDotIndex > 0;
+        const extension = hasExtension ? file.name.slice(lastDotIndex) : '';
+        const nameWithoutExtension = hasExtension ? file.name.slice(0, lastDotIndex) : file.name;
+
+        return {
+          file,
+          editedName: nameWithoutExtension,
+          extension,
+        };
+      });
+
+      setPendingFiles(prev => [...prev, ...pendingFilesWithNames]);
       return;
     }
 
@@ -221,16 +244,28 @@ export default function FileUpload({
       return;
     }
 
+    // Create new File objects with edited names
+    const filesWithEditedNames = pendingFiles.map(pf => {
+      const fullName = getFullFilename(pf);
+      // Only create new File if name was changed
+      if (fullName !== pf.file.name) {
+        return new File([pf.file], fullName, { type: pf.file.type });
+      }
+      return pf.file;
+    });
+
     console.log('📤 Initiating bulk upload:', {
       folderName: folder.name,
-      fileCount: pendingFiles.length,
-      fileNames: pendingFiles.map(f => f.name)
+      fileCount: filesWithEditedNames.length,
+      fileNames: filesWithEditedNames.map(f => f.name),
+      originalNames: pendingFiles.map(pf => pf.file.name)
     });
 
     try {
-      await onBulkUpload(pendingFiles, folder.name);
+      await onBulkUpload(filesWithEditedNames, folder.name);
       // Clear pending files after successful upload initiation
       setPendingFiles([]);
+      setEditingIndex(null);
     } catch (err: any) {
       console.error('Bulk upload failed:', err);
       toast.error(err.message || 'Bulk upload failed');
@@ -238,7 +273,41 @@ export default function FileUpload({
   };
 
   // Calculate total size of pending files
-  const totalPendingSize = pendingFiles.reduce((sum, file) => sum + file.size, 0);
+  const totalPendingSize = pendingFiles.reduce((sum, pf) => sum + pf.file.size, 0);
+
+  // Helper to get full filename (edited name + extension)
+  const getFullFilename = (pf: PendingFileWithName) => `${pf.editedName}${pf.extension}`;
+
+  // Handle file name change
+  const handleFileNameChange = (index: number, newName: string) => {
+    // Remove any extension from the input (user should not be able to change extension)
+    const cleanName = newName.replace(/\.[^/.]+$/, '');
+    setPendingFiles(prev => prev.map((pf, i) =>
+      i === index ? { ...pf, editedName: cleanName } : pf
+    ));
+  };
+
+  // Start editing a file name
+  const startEditing = (index: number) => {
+    setEditingIndex(index);
+    // Focus input after render
+    setTimeout(() => {
+      editInputRef.current?.focus();
+      editInputRef.current?.select();
+    }, 0);
+  };
+
+  // Stop editing
+  const stopEditing = () => {
+    setEditingIndex(null);
+  };
+
+  // Handle key press in edit input
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      stopEditing();
+    }
+  };
 
   const handleFolderSelect = (folderId: string | null) => {
     if (onFolderChange) {
@@ -545,9 +614,9 @@ export default function FileUpload({
 
             {/* Pending files list */}
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {pendingFiles.map((file, index) => (
+              {pendingFiles.map((pf, index) => (
                 <motion.div
-                  key={`${file.name}-${index}`}
+                  key={`${pf.file.name}-${index}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
@@ -558,11 +627,40 @@ export default function FileUpload({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-secondary-900 truncate">
-                      {file.name}
-                    </p>
+                    {editingIndex === index ? (
+                      <div className="flex items-center">
+                        <input
+                          ref={editInputRef}
+                          type="text"
+                          value={pf.editedName}
+                          onChange={(e) => handleFileNameChange(index, e.target.value)}
+                          onBlur={stopEditing}
+                          onKeyDown={handleEditKeyDown}
+                          className="flex-1 text-sm font-medium text-secondary-900 bg-primary-50 border border-primary-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          disabled={isBulkUploading}
+                        />
+                        <span className="text-sm text-secondary-500 ml-0.5">{pf.extension}</span>
+                      </div>
+                    ) : (
+                      <div
+                        className="group flex items-center cursor-pointer"
+                        onClick={() => !isBulkUploading && startEditing(index)}
+                        title="Click to edit file name"
+                      >
+                        <p className="text-sm font-medium text-secondary-900 truncate group-hover:text-primary-600">
+                          {pf.editedName}
+                        </p>
+                        <span className="text-sm text-secondary-500">{pf.extension}</span>
+                        <PencilIcon className="w-3.5 h-3.5 ml-2 text-secondary-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    )}
                     <p className="text-xs text-secondary-500">
-                      {formatFileSize(file.size)}
+                      {formatFileSize(pf.file.size)}
+                      {pf.editedName !== pf.file.name.replace(pf.extension, '') && (
+                        <span className="ml-2 text-primary-600">
+                          (renamed from: {pf.file.name})
+                        </span>
+                      )}
                     </p>
                   </div>
 

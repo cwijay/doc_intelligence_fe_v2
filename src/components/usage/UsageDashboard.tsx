@@ -193,10 +193,11 @@ export function UsageDashboard() {
           {subscriptionData && <SubscriptionCard subscription={subscriptionData} />}
 
           {/* Cost Summary Card */}
+          {/* Note: breakdown is from historyData to match the selected period's total cost */}
           <CostSummaryCard
             totalCost={historyData?.total_cost_usd || 0}
             periodLabel={`Last ${period}`}
-            breakdown={breakdownData?.feature_breakdown?.map((f) => ({
+            breakdown={historyData?.feature_breakdown?.map((f) => ({
               name: f.name,
               cost: f.cost_usd,
             }))}

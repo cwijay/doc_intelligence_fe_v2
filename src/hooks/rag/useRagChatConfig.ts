@@ -10,26 +10,23 @@ export interface RagChatConfig {
   folderFilter: string | null;
   fileFilter: string | null;
   setMaxSources: (count: number) => void;
-  setSearchMode: (mode: GeminiSearchMode) => void;
   setFolderFilter: (folder: string | null) => void;
   setFileFilter: (file: string | null) => void;
 }
 
 /**
  * Hook for RAG chat configuration state
+ * Search mode is fixed to 'hybrid' for best results (combines semantic + keyword search)
  */
 export function useRagChatConfig(): RagChatConfig {
   const [maxSources, setMaxSourcesState] = useState<number>(RAG_CONFIG.DEFAULT_MAX_RESULTS);
-  const [searchMode, setSearchModeState] = useState<GeminiSearchMode>('semantic');
+  // Fixed to hybrid mode - combines semantic and keyword search for best results
+  const searchMode: GeminiSearchMode = 'hybrid';
   const [folderFilter, setFolderFilterState] = useState<string | null>(null);
   const [fileFilter, setFileFilterState] = useState<string | null>(null);
 
   const setMaxSources = useCallback((count: number) => {
     setMaxSourcesState(count);
-  }, []);
-
-  const setSearchMode = useCallback((mode: GeminiSearchMode) => {
-    setSearchModeState(mode);
   }, []);
 
   const setFolderFilter = useCallback((folder: string | null) => {
@@ -46,7 +43,6 @@ export function useRagChatConfig(): RagChatConfig {
     folderFilter,
     fileFilter,
     setMaxSources,
-    setSearchMode,
     setFolderFilter,
     setFileFilter,
   };

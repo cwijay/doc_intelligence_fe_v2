@@ -11,6 +11,7 @@ import {
   DocumentFilters,
   DocumentUploadResponse,
   DocumentDeleteResponse,
+  DocumentRenameResponse,
   DuplicateFileErrorDetail,
 } from '@/types/api';
 import { authService } from '@/lib/auth';
@@ -260,6 +261,58 @@ export const documentsApi = {
           default:
             throw new Error(
               `Delete failed (${status}): ${errorData?.detail || error.message || 'Unknown error'}`
+            );
+        }
+      } else if (error.request) {
+        throw new Error('Network error: Unable to connect to the server.');
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Rename a document
+   * This updates the document name in the database, renames all related GCS files,
+   * and re-indexes the document in the Gemini File Search store.
+   */
+  rename: async (documentId: string, newName: string): Promise<DocumentRenameResponse> => {
+    const currentUser = authService.getUser();
+    if (!currentUser) {
+      throw new Error('No authenticated user found. Please login first.');
+    }
+
+    try {
+      console.log('📝 Renaming document:', { documentId, newName });
+
+      const response: AxiosResponse<DocumentRenameResponse> = await api.patch(
+        `/documents/${documentId}/rename`,
+        { new_name: newName }
+      );
+
+      console.log('✅ Document renamed successfully:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Document rename error:', error);
+
+      if (error.response) {
+        const status = error.response.status;
+        const errorData = error.response.data;
+
+        switch (status) {
+          case 400:
+            throw new Error(errorData?.detail || 'Invalid document name. Please check the name and try again.');
+          case 404:
+            throw new Error('Document not found.');
+          case 409:
+            throw new Error(errorData?.detail || 'A document with this name already exists in this folder.');
+          case 401:
+          case 403:
+            throw new Error('Access denied. You do not have permission to rename this document.');
+          case 500:
+            throw new Error(`Server error: ${errorData?.detail || 'Please try again later.'}`);
+          default:
+            throw new Error(
+              `Rename failed (${status}): ${errorData?.detail || error.message || 'Unknown error'}`
             );
         }
       } else if (error.request) {

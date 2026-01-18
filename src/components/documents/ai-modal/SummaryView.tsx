@@ -13,18 +13,20 @@ interface SummaryContentProps {
 
 export function SummaryContent({ data }: SummaryContentProps) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-secondary-900">Document Summary</h3>
+    <div className="h-full flex flex-col">
+      <h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-4 flex-shrink-0">Document Summary</h3>
       {data.content ? (
-        <div className="border border-secondary-200 rounded-lg overflow-hidden">
-          <div className="p-4 h-96 overflow-y-auto">
+        <div className="flex-1 min-h-0 border border-secondary-200 dark:border-secondary-700 rounded-lg overflow-hidden">
+          <div className="p-4 h-full overflow-y-auto">
             <MarkdownRenderer content={data.content} />
           </div>
         </div>
       ) : (
-        <div className="text-center py-8 text-secondary-500">
-          <SparklesIcon className="w-12 h-12 mx-auto mb-2" />
-          <p>No summary content available</p>
+        <div className="flex-1 flex items-center justify-center text-secondary-500">
+          <div className="text-center">
+            <SparklesIcon className="w-12 h-12 mx-auto mb-2" />
+            <p>No summary content available</p>
+          </div>
         </div>
       )}
     </div>

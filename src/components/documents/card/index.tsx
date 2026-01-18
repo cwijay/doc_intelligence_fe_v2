@@ -13,6 +13,7 @@ import {
   ChatBubbleLeftIcon,
   TableCellsIcon,
   EllipsisVerticalIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { CheckIcon } from '@heroicons/react/24/solid';
 import { clsx } from 'clsx';
@@ -41,6 +42,7 @@ export default function DocumentCard({
   onSelectionChange,
   onView,
   onDownload,
+  onRename,
   onDelete,
   onParse,
   onLoadParsed,
@@ -312,6 +314,20 @@ export default function DocumentCard({
               </button>
             )}
 
+            {onRename && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onRename();
+                }}
+                className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                title="Rename document"
+              >
+                <PencilSquareIcon className="w-4 h-4 text-blue-500" />
+              </button>
+            )}
+
             {(onView || onDownload || onDelete) && (
               <button
                 className="p-1.5 rounded hover:bg-gray-100 transition-colors"
@@ -427,6 +443,7 @@ export default function DocumentCard({
             onExtract={onExtract}
             onView={onView}
             onDownload={onDownload}
+            onRename={onRename}
             onDelete={onDelete ? () => setShowDeleteConfirm(true) : undefined}
           />
         )}

@@ -22,6 +22,13 @@ import {
 export interface ExtractionActions {
   /** Start extraction workflow for a document */
   startExtraction: (document: Document, parseData?: DocumentParseResponse, documentTypeHint?: string) => void;
+  /** Start extraction with a pre-selected template (skips analyze step) */
+  startExtractionWithTemplate: (
+    document: Document,
+    template: TemplateInfo,
+    schema: Record<string, unknown>,
+    parseData?: DocumentParseResponse
+  ) => void;
   /** Analyze document to discover fields */
   analyzeFields: () => Promise<void>;
   /** Toggle field selection */
@@ -157,6 +164,33 @@ export function useExtraction(): UseExtractionReturn {
     setStoredParseData(parseData || null);
     setDocumentTypeHint(typeHint);
     setIsModalOpen(true);
+  }, [resetState]);
+
+  /**
+   * Start extraction with a pre-selected template
+   * Skips the analyze step and goes directly to extract step
+   */
+  const startExtractionWithTemplate = useCallback((
+    document: Document,
+    template: TemplateInfo,
+    templateSchema: Record<string, unknown>,
+    parseData?: DocumentParseResponse
+  ) => {
+    resetState();
+    setSelectedDocument(document);
+    setStoredParseData(parseData || null);
+    setSelectedTemplate(template);
+    setSchema(templateSchema);
+    setDocumentType(template.document_type);
+    // Skip directly to extract step (bypass analyze and select)
+    setStep('extract');
+    setIsModalOpen(true);
+
+    console.log('🚀 Starting extraction with template:', {
+      document: document.name,
+      template: template.name,
+      documentType: template.document_type,
+    });
   }, [resetState]);
 
   const closeExtraction = useCallback(() => {
@@ -303,7 +337,17 @@ export function useExtraction(): UseExtractionReturn {
 
       // Load template schema
       try {
-        const response = await extractionApi.getTemplate(template.name);
+        // Resolve folder name for template scoping
+        let folderName: string | undefined;
+        if (selectedDocument && user?.org_id) {
+          try {
+            folderName = await resolveFolderName(selectedDocument, user.org_id);
+          } catch (e) {
+            console.warn('Failed to resolve folder name for template:', e);
+          }
+        }
+
+        const response = await extractionApi.getTemplate(template.name, folderName);
         if (response.success && response.schema) {
           setSchema(response.schema);
         }
@@ -313,7 +357,7 @@ export function useExtraction(): UseExtractionReturn {
     } else {
       setSchema(null);
     }
-  }, []);
+  }, [selectedDocument, user?.org_id]);
 
   // =============================================================================
   // Schema Generation
@@ -492,13 +536,13 @@ export function useExtraction(): UseExtractionReturn {
       setIsLoading(true);
       toast.loading('Generating Excel file...', { id: 'export-excel' });
 
-      const blob = await extractionApi.exportToExcel(extractionJobId);
+      const { blob, filename } = await extractionApi.exportToExcel(extractionJobId);
 
-      // Create download link
+      // Create download link with server-provided filename
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `extraction_${extractionJobId}.xlsx`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -542,6 +586,7 @@ export function useExtraction(): UseExtractionReturn {
 
     // Actions
     startExtraction,
+    startExtractionWithTemplate,
     analyzeFields,
     toggleFieldSelection,
     selectAllFields,
@@ -576,6 +621,7 @@ export function useExtraction(): UseExtractionReturn {
     isModalOpen,
     storedParseData,
     startExtraction,
+    startExtractionWithTemplate,
     analyzeFields,
     toggleFieldSelection,
     selectAllFields,

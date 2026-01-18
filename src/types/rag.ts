@@ -216,7 +216,7 @@ export interface SearchHistoryItem {
   timestamp: Date;
   filters: {
     folder?: string;
-    file?: string;
+    file?: string | string[];
     searchMode: GeminiSearchMode;
   };
 }
@@ -231,7 +231,8 @@ export interface DocumentChatRequest {
   organization_name: string;
   session_id?: string;
   folder_filter?: string;
-  file_filter?: string;
+  /** Filter by specific file(s). Accepts single filename or array of filenames. */
+  file_filter?: string | string[];
   search_mode?: GeminiSearchMode;
   max_sources?: number;
 }
@@ -254,10 +255,57 @@ export interface DocumentChatResponse {
   search_mode: GeminiSearchMode;
   filters: {
     folder?: string;
-    file?: string;
+    file?: string | string[];
   };
   session_id: string;
   processing_time_ms: number;
   timestamp: string;
   error?: string;
+}
+
+// =============================================================================
+// DocumentAgent Streaming Chat Types (SSE)
+// =============================================================================
+
+// Streaming event types for SSE
+export type StreamEventType =
+  | 'status'      // Status message (e.g., "Starting RAG search...")
+  | 'token'       // Single token from LLM streaming
+  | 'tool_start'  // Tool execution started (e.g., rag_search)
+  | 'tool_end'    // Tool execution completed
+  | 'citations'   // Citation data from RAG search
+  | 'usage'       // Token usage statistics
+  | 'error'       // Error event
+  | 'done';       // Stream complete
+
+// Token usage information
+export interface StreamTokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+}
+
+// Streaming event from /chat/stream SSE endpoint
+export interface StreamEvent {
+  event: StreamEventType;
+  // Token events
+  token?: string;
+  accumulated?: string;
+  // Tool events
+  tool_name?: string;
+  // Citation events
+  citations?: DocumentChatCitation[];
+  // Status/error events
+  message?: string;
+  error?: string;
+  // Usage events
+  usage?: StreamTokenUsage;
+  // Done event
+  session_id?: string;
+  processing_time_ms?: number;
+}
+
+// Request for streaming chat (extends base request)
+export interface DocumentChatStreamRequest extends DocumentChatRequest {
+  include_tool_events?: boolean;  // Include tool_start/tool_end events (default: true)
 }

@@ -20,17 +20,20 @@ import { useSearchHistory } from './useSearchHistory';
 export { useRagChatSession, type GeminiSearchOptions } from './useRagChatSession';
 export { useRagChatConfig } from './useRagChatConfig';
 export { useSearchHistory } from './useSearchHistory';
+export { useChatPage, storeChatContext, clearChatContext, type UseChatPageReturn, type ChatContext } from './useChatPage';
 
 export interface UseRagChatReturn {
   // State
   messages: RagMessage[];
   isLoading: boolean;
+  isStreaming: boolean;              // Whether currently streaming tokens
+  streamingStatus: string | null;    // Status message during streaming
   error: string | null;
   isOpen: boolean;
   currentDocument: Document | null;
   currentDocuments: Document[];
 
-  // Configuration
+  // Configuration (searchMode is fixed to 'hybrid')
   maxSources: number;
   searchMode: GeminiSearchMode;
   folderFilter: string | null;
@@ -45,6 +48,7 @@ export interface UseRagChatReturn {
   closeChat: () => void;
   sendMessage: (query: string, options?: EnhancedRAGQueryOptions) => Promise<void>;
   sendGeminiSearch: (query: string, options?: GeminiSearchOptions) => Promise<void>;
+  sendGeminiSearchStream: (query: string, options?: GeminiSearchOptions) => Promise<void>;
   clearChat: () => void;
   retryLastMessage: () => Promise<void>;
   viewHistoryItem: (item: SearchHistoryItem) => void;
@@ -52,7 +56,6 @@ export interface UseRagChatReturn {
 
   // Configuration setters
   setMaxSources: (count: number) => void;
-  setSearchMode: (mode: GeminiSearchMode) => void;
   setFolderFilter: (folder: string | null) => void;
   setFileFilter: (file: string | null) => void;
 }
@@ -81,6 +84,16 @@ export function useRagChat(): UseRagChatReturn {
     }, history.addHistoryItem);
   }, [session, config, history.addHistoryItem]);
 
+  // Wrap sendGeminiSearchStream to include config and history (streaming version)
+  const sendGeminiSearchStream = useCallback(async (query: string, options?: GeminiSearchOptions) => {
+    await session.sendGeminiSearchStream(query, options, {
+      searchMode: config.searchMode,
+      folderFilter: config.folderFilter,
+      fileFilter: config.fileFilter,
+      maxSources: config.maxSources,
+    }, history.addHistoryItem);
+  }, [session, config, history.addHistoryItem]);
+
   // Wrap viewHistoryItem to pass setMessages
   const viewHistoryItem = useCallback((item: SearchHistoryItem) => {
     history.viewHistoryItem(item, session.setMessages);
@@ -90,6 +103,8 @@ export function useRagChat(): UseRagChatReturn {
     // State from session
     messages: session.messages,
     isLoading: session.isLoading,
+    isStreaming: session.isStreaming,
+    streamingStatus: session.streamingStatus,
     error: session.error,
     isOpen: session.isOpen,
     currentDocument: session.currentDocument,
@@ -110,6 +125,7 @@ export function useRagChat(): UseRagChatReturn {
     closeChat: session.closeChat,
     sendMessage,
     sendGeminiSearch,
+    sendGeminiSearchStream,
     clearChat: session.clearChat,
     retryLastMessage: session.retryLastMessage,
     viewHistoryItem,
@@ -117,7 +133,6 @@ export function useRagChat(): UseRagChatReturn {
 
     // Configuration setters
     setMaxSources: config.setMaxSources,
-    setSearchMode: config.setSearchMode,
     setFolderFilter: config.setFolderFilter,
     setFileFilter: config.setFileFilter,
   };
