@@ -53,7 +53,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-3 group">
-              <Logo size="md" showText />
+              <Logo size="lg" showText />
             </Link>
             
             <div className="hidden md:ml-10 md:flex md:space-x-1">

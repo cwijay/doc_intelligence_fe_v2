@@ -6,7 +6,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Enterprise-grade routing: Allow dashboard and essential routes, redirect others to /register
-  const allowedRoutes = ['/register', '/dashboard', '/documents', '/organizations', '/users', '/unauthorized', '/profile', '/settings', '/usage', '/folders', '/insights'];
+  const allowedRoutes = ['/register', '/dashboard', '/documents', '/organizations', '/users', '/unauthorized', '/profile', '/settings', '/usage', '/folders', '/insights', '/reports'];
   const isAllowedRoute = allowedRoutes.some(route => pathname.startsWith(route));
 
   if (!isAllowedRoute) {

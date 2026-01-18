@@ -45,7 +45,7 @@ export default function AppLayout({
   return (
     <div className={clsx(
       "bg-gradient-to-br from-[#f5f5f5] via-[#f0fafa] to-[#fef6f3] dark:from-brand-navy-500 dark:via-brand-navy-600 dark:to-brand-navy-700 transition-colors duration-200",
-      noPadding ? "h-screen overflow-hidden" : "min-h-screen"
+      noPadding ? "h-screen overflow-auto" : "min-h-screen"
     )}>
       {/* Desktop Sidebar */}
       {showDesktopSidebar && (
@@ -83,7 +83,7 @@ export default function AppLayout({
           marginLeft: effectiveSidebarWidth,
           paddingTop: LAYOUT.HEADER_HEIGHT,
           ...(noPadding
-            ? { height: '100vh', overflow: 'hidden' }
+            ? { height: '100vh', overflow: 'auto' }
             : { minHeight: '100vh' }
           ),
         }}
