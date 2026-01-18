@@ -3,7 +3,7 @@
  * Reduces duplication while preserving type safety
  */
 
-import { constructParsedFilePath } from '@/lib/api/utils/path-utils';
+import { constructParsedPath, type PathParams } from '@/lib/gcs-paths';
 
 /**
  * Validate document inputs for AI generation
@@ -80,7 +80,8 @@ export function buildBaseRequest(
   force?: boolean
 ): Record<string, unknown> {
   // Construct parsed_file_path like extraction API does
-  const parsedFilePath = constructParsedFilePath(orgName, folderName, documentName);
+  const pathParams: PathParams = { orgName, folderName, documentName };
+  const parsedFilePath = constructParsedPath(pathParams);
 
   return {
     document_name: documentName,

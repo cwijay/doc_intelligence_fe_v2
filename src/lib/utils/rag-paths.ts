@@ -10,33 +10,8 @@ import {
  * Handles dynamic path construction for document_paths and bm_25_paths
  *
  * NOTE: For new code, prefer using the centralized utilities in '@/lib/gcs-paths'.
- * This module provides backwards compatibility and RAG-specific helpers.
+ * This module provides RAG-specific helpers (BM25 paths, multi-document path construction).
  */
-
-/**
- * Extract filename without extension from document name
- * Example: "report.pdf" -> "report", "data.xlsx" -> "data"
- *
- * @deprecated Use getBaseName from '@/lib/gcs-paths' instead
- */
-export const getDocumentNameWithoutExtension = (documentName: string): string => {
-  return getBaseName(documentName);
-};
-
-/**
- * Construct document path for parsed content in GCS
- * Format: {org_name}/parsed/{folder_name}/{document_name}.md
- *
- * @deprecated Use constructParsedPath from '@/lib/gcs-paths' instead
- */
-export const constructDocumentPath = (
-  orgName: string,
-  folderName: string,
-  documentName: string
-): string => {
-  const params: PathParams = { orgName, folderName, documentName };
-  return constructParsedPath(params);
-};
 
 /**
  * Construct BM25 index path for keyword search
@@ -84,7 +59,8 @@ export const constructMultiDocumentPaths = (
     }
 
     // Document path for parsed content
-    document_paths.push(constructDocumentPath(orgName, doc.folder_name, doc.name));
+    const pathParams: PathParams = { orgName, folderName: doc.folder_name, documentName: doc.name };
+    document_paths.push(constructParsedPath(pathParams));
     
     // Document name with extension for filtering (matches Pinecone metadata)
     document_name_list.push(doc.name);

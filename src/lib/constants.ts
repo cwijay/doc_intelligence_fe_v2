@@ -102,10 +102,14 @@ export const TIMEOUTS = {
   AUTH_API: 120000,
   /** Excel chat operations (10 minutes) */
   EXCEL_CHAT: 600000,
+  /** Excel/Sheets analysis operations (5 minutes) - default for analysis requests */
+  EXCEL_ANALYSIS: 300000,
   /** Document parsing operations (10 minutes) - LlamaParse can be slow */
   PARSE_API: 600000,
   /** RAG API operations (2 minutes) */
   RAG_API: 120000,
+  /** RAG fast operations (15 seconds) - for quick RAG queries */
+  RAG_FAST: 15000,
   /** Base API operations (2 minutes) */
   BASE_API: 120000,
   /** Diagnostics checks (2 minutes) */
@@ -116,6 +120,15 @@ export const TIMEOUTS = {
   REGISTRATION_DEV: 3000,
   /** Session cleanup delay (5 seconds) */
   SESSION_CLEANUP: 5000,
+} as const;
+
+/**
+ * API operation timeouts in SECONDS (passed to backend APIs)
+ * These are different from HTTP client timeouts (TIMEOUTS) which are in milliseconds
+ */
+export const API_OPERATION_TIMEOUTS = {
+  /** Excel/Sheets analysis operation timeout in seconds (5 minutes) */
+  EXCEL_ANALYSIS: 300,
 } as const;
 
 // =============================================================================
@@ -211,9 +224,11 @@ export const STORAGE_KEYS = {
   // Generation preferences prefix
   GENERATION_COUNT_PREFIX: 'generation_count_',
   RECENT_COUNTS_PREFIX: 'recent_counts_',
-  // Sidebar state
+  // Document tree sidebar state (used in DocumentTreeSidebar)
   SIDEBAR_STATE: 'document-tree-sidebar-state',
   SIDEBAR_WIDTH: 'document-tree-sidebar-width',
+  // Main app sidebar state (used in AppSidebar)
+  MAIN_SIDEBAR_STATE: 'app-sidebar-state',
 } as const;
 
 // =============================================================================
@@ -221,13 +236,20 @@ export const STORAGE_KEYS = {
 // =============================================================================
 
 export const LAYOUT = {
-  /** Navbar height in pixels */
+  /** Navbar height in pixels (legacy - for top navbar) */
   NAVBAR_HEIGHT: 64,
-  /** Sidebar dimensions */
+  /** App header height in pixels (new sidebar layout) */
+  HEADER_HEIGHT: 56,
+  /** Main app sidebar dimensions */
+  APP_SIDEBAR: {
+    EXPANDED_WIDTH: 256,
+    COLLAPSED_WIDTH: 64,
+  },
+  /** Document tree sidebar dimensions */
   SIDEBAR: {
-    MIN_WIDTH: 200,
-    MAX_WIDTH: 500,
-    DEFAULT_WIDTH: 280,
+    MIN_WIDTH: 180,
+    MAX_WIDTH: 600,
+    DEFAULT_WIDTH: 260,
     COLLAPSED_WIDTH: 64,
   },
   /** Responsive breakpoints */

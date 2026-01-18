@@ -375,3 +375,96 @@ export function handleApiError(error: unknown, context: string): never {
   logApiError(error, context);
   throw new Error(createErrorMessage(error));
 }
+
+// =============================================================================
+// FORM ERROR EXTRACTION (for form submit error handling)
+// =============================================================================
+
+/**
+ * FastAPI validation error detail item
+ */
+interface FastAPIValidationDetail {
+  loc?: string[];
+  msg?: string;
+}
+
+/**
+ * Extract user-friendly error message from form submission errors.
+ * Handles FastAPI validation errors, generic API responses, and Axios errors.
+ *
+ * @param error - The error object from a catch block
+ * @param defaultMessage - Default message if no specific error can be extracted
+ * @param fieldPriority - Optional field name to prioritize in error messages (e.g., 'password')
+ * @returns User-friendly error message string
+ *
+ * @example
+ * try {
+ *   await createUser.mutateAsync(userData);
+ * } catch (error) {
+ *   const errorMessage = extractFormError(error, 'Failed to create user', 'password');
+ *   toast.error(errorMessage);
+ * }
+ */
+export function extractFormError(
+  error: unknown,
+  defaultMessage: string = 'An error occurred. Please try again.',
+  fieldPriority?: string
+): string {
+  if (!error || typeof error !== 'object') {
+    return defaultMessage;
+  }
+
+  // Type guard for axios-like error response
+  const errorObj = error as {
+    response?: {
+      data?: {
+        message?: string;
+        detail?: unknown;
+      };
+    };
+    message?: string;
+  };
+
+  // Try to extract from response.data.message
+  if (errorObj.response?.data?.message) {
+    return errorObj.response.data.message;
+  }
+
+  // Try to extract from response.data.detail (FastAPI validation errors)
+  if (errorObj.response?.data?.detail) {
+    const detail = errorObj.response.data.detail;
+
+    // Handle array of validation errors (FastAPI format)
+    if (Array.isArray(detail)) {
+      const validationDetails = detail as FastAPIValidationDetail[];
+
+      // If a field priority is specified, look for errors related to that field first
+      if (fieldPriority) {
+        const fieldErrors = validationDetails.filter((err) =>
+          err.loc?.includes(fieldPriority) ||
+          err.msg?.toLowerCase().includes(fieldPriority.toLowerCase())
+        );
+        if (fieldErrors.length > 0 && fieldErrors[0].msg) {
+          return fieldErrors[0].msg;
+        }
+      }
+
+      // Return the first validation error message
+      if (validationDetails[0]?.msg) {
+        return validationDetails[0].msg;
+      }
+    }
+
+    // Handle string detail
+    if (typeof detail === 'string') {
+      return detail;
+    }
+  }
+
+  // Try to extract from error.message (but filter out generic Axios messages)
+  if (errorObj.message && !errorObj.message.startsWith('Request failed with status code')) {
+    return errorObj.message;
+  }
+
+  return defaultMessage;
+}

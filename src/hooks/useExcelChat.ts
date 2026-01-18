@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document } from '@/types/api';
 import { excelApiService, ChatMessage, ChatSession, SheetsAnalyzeResponse } from '@/lib/api/excel';
 import { fileUtils } from '@/lib/file-utils';
+import { API_OPERATION_TIMEOUTS } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 /**
@@ -280,7 +281,7 @@ export function useExcelChat(): UseExcelChatReturn {
         currentSession.id,
         {
           detailed_analysis: options?.detailed_analysis || false,
-          timeout: 300,
+          timeout: API_OPERATION_TIMEOUTS.EXCEL_ANALYSIS,
           max_results: 100
         }
       );

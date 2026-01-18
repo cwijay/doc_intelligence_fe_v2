@@ -19,7 +19,7 @@ import {
   SaveExtractedDataResponse,
   FieldSelection,
 } from '@/types/extraction';
-import { validateParsedFilePath, constructParsedFilePath } from '@/lib/api/utils/path-utils';
+import { validateContentTypePath, constructParsedPath, type PathParams } from '@/lib/gcs-paths';
 
 /**
  * Validate extraction inputs
@@ -28,7 +28,10 @@ function validateExtractionInputs(documentName: string, parsedFilePath: string):
   if (!documentName || documentName.trim() === '') {
     throw new Error('document_name is required and cannot be empty');
   }
-  validateParsedFilePath(parsedFilePath);
+  const validationResult = validateContentTypePath(parsedFilePath, 'parsed');
+  if (!validationResult.isValid) {
+    console.warn(validationResult.errors[0]);
+  }
 }
 
 /**
@@ -180,22 +183,37 @@ export const extractionApi = {
 
   /**
    * Get a specific template by name
+   * @param templateName - The name of the template to fetch
+   * @param folderName - Optional folder name to scope the template search
    */
-  getTemplate: async (templateName: string): Promise<TemplateResponse> => {
+  getTemplate: async (templateName: string, folderName?: string): Promise<TemplateResponse> => {
     if (!templateName || templateName.trim() === '') {
       throw new Error('template_name is required');
     }
 
     try {
-      logExtractionStart('getTemplate', templateName);
+      logExtractionStart('getTemplate', templateName, { folderName });
+
+      // Build query params if folder_name is provided
+      const params: Record<string, string> = {};
+      if (folderName) {
+        params.folder_name = folderName;
+      }
+
+      const url = `${API_ENDPOINTS.EXTRACTION.TEMPLATES}/${encodeURIComponent(templateName)}`;
+      console.log('🔍 getTemplate API call:', { url, params, folderName });
 
       const response: AxiosResponse<TemplateResponse> = await aiApi.get(
-        `${API_ENDPOINTS.EXTRACTION.TEMPLATES}/${encodeURIComponent(templateName)}`,
-        { timeout: TIMEOUTS.AI_API }
+        url,
+        {
+          timeout: TIMEOUTS.AI_API,
+          params,
+        }
       );
 
       logExtractionSuccess('getTemplate', templateName, {
         documentType: response.data.document_type,
+        folderName,
       });
 
       return response.data;
@@ -306,8 +324,9 @@ export const extractionApi = {
 
   /**
    * Export extracted data as Excel file
+   * Returns both the blob and the filename from the server
    */
-  exportToExcel: async (extractionJobId: string): Promise<Blob> => {
+  exportToExcel: async (extractionJobId: string): Promise<{ blob: Blob; filename: string }> => {
     if (!extractionJobId || extractionJobId.trim() === '') {
       throw new Error('extraction_job_id is required');
     }
@@ -323,9 +342,21 @@ export const extractionApi = {
         }
       );
 
-      logExtractionSuccess('exportToExcel', extractionJobId);
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `extraction_${extractionJobId}.xlsx`; // fallback
 
-      return response.data;
+      if (contentDisposition) {
+        // Parse filename from header: attachment; filename="template_invoice123.xlsx"
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+
+      logExtractionSuccess('exportToExcel', extractionJobId, { filename });
+
+      return { blob: response.data, filename };
     } catch (error) {
       logExtractionError('exportToExcel', error);
       throw error;
@@ -342,7 +373,8 @@ export const extractionApi = {
     documentTypeHint?: string,
     sessionId?: string
   ): Promise<AnalyzeFieldsResponse> => {
-    const parsedFilePath = constructParsedFilePath(orgName, folderName, documentName);
+    const pathParams: PathParams = { orgName, folderName, documentName };
+    const parsedFilePath = constructParsedPath(pathParams);
 
     return extractionApi.analyzeFields(
       documentName,
@@ -363,7 +395,8 @@ export const extractionApi = {
     schema?: Record<string, unknown>,
     sessionId?: string
   ): Promise<ExtractDataResponse> => {
-    const parsedFilePath = constructParsedFilePath(orgName, folderName, documentName);
+    const pathParams: PathParams = { orgName, folderName, documentName };
+    const parsedFilePath = constructParsedPath(pathParams);
 
     return extractionApi.extractData(
       documentName,

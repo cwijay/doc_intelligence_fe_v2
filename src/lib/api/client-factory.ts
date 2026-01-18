@@ -289,23 +289,6 @@ export const getAiApiConfig = (): ApiClientConfig => ({
 });
 
 /**
- * @deprecated Use getAiApiConfig() instead for proxy support
- */
-export const AI_API_CONFIG: ApiClientConfig = {
-  baseURL: clientConfig.aiApiBaseUrl,
-  timeout: TIMEOUTS.AI_API,
-  serviceName: 'AI',
-  includeOrgHeader: true,
-  useOrgName: true,
-  handleUnauthorized: false,
-  errorMessages: {
-    404: 'Document not found or not yet ingested.',
-    429: 'Rate limit exceeded. Please wait before trying again.',
-    500: 'AI service error. Please try again later.',
-  },
-};
-
-/**
  * Configuration for the Ingestion API client
  * Note: Ingestion API expects organization NAME in X-Organization-ID header, not UUID
  */

@@ -9,6 +9,7 @@ import {
 } from '@/types/rag';
 
 import { clientConfig } from '@/lib/config';
+import { TIMEOUTS } from '@/lib/constants';
 
 // Simple RAG API Configuration
 const RAG_API_BASE_URL = clientConfig.ragApiBaseUrl;
@@ -17,7 +18,7 @@ const SIMPLE_RAG_API_URL = `${RAG_API_BASE_URL}/api/v1/simple-rag`;
 // Create axios instance for Simple RAG API (no authentication as specified)
 const simpleRagApi = axios.create({
   baseURL: SIMPLE_RAG_API_URL,
-  timeout: 15000, // 15 seconds timeout (much faster than old API!)
+  timeout: TIMEOUTS.RAG_FAST, // 15 seconds timeout (much faster than old API!)
   headers: {
     'Content-Type': 'application/json',
   },

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Document } from '@/types/api';
 import { authService } from '@/lib/auth';
 import { clientConfig } from '@/lib/config';
+import { TIMEOUTS, API_OPERATION_TIMEOUTS } from '@/lib/constants';
 
 // Sheets Agent API Base URL from environment configuration
 // Uses the AI API base URL where the SheetsAgent is hosted
@@ -10,7 +11,7 @@ const SHEETS_API_BASE_URL = clientConfig.aiApiBaseUrl;
 // Create dedicated axios instance for Sheets agent
 const sheetsApi = axios.create({
   baseURL: SHEETS_API_BASE_URL,
-  timeout: 600000, // 10 minutes for complex analysis
+  timeout: TIMEOUTS.EXCEL_CHAT, // 10 minutes for complex analysis
   headers: {
     'Content-Type': 'application/json',
   },
@@ -268,7 +269,7 @@ export const analyzeSheets = async (
       query: query.trim(),
       session_id: sessionId,
       options: {
-        timeout: 300, // 5 minutes default
+        timeout: API_OPERATION_TIMEOUTS.EXCEL_ANALYSIS, // 5 minutes default (in seconds for backend)
         max_results: 100,
         detailed_analysis: false,
         ...options

@@ -10,6 +10,7 @@ import FormModalFooter from '@/components/ui/FormModalFooter';
 import PasswordRequirements, { requirements } from '@/components/ui/PasswordRequirements';
 import { useCreateUser } from '@/hooks/useUsers';
 import { UserCreateRequest, UserRole } from '@/types/api';
+import { extractFormError } from '@/lib/api/utils/error-utils';
 import { useState } from 'react';
 
 interface AddUserModalProps {
@@ -83,33 +84,7 @@ export default function AddUserModal({
       handleClose();
     } catch (error: unknown) {
       console.error('Failed to create user:', error);
-      
-      let errorMessage = 'Failed to create user. Please try again.';
-      
-      if (error && typeof error === 'object' && 'response' in error) {
-        const errorResponse = error as { response?: { data?: { message?: string; detail?: unknown } }; message?: string };
-        
-        if (errorResponse.response?.data?.message) {
-          errorMessage = errorResponse.response.data.message;
-        } else if (errorResponse.response?.data?.detail) {
-          if (Array.isArray(errorResponse.response.data.detail)) {
-            const detail = errorResponse.response.data.detail as Array<{ loc?: string[]; msg?: string }>;
-            const passwordErrors = detail.filter((err) => 
-              err.loc?.includes('password') || err.msg?.toLowerCase().includes('password')
-            );
-            if (passwordErrors.length > 0 && passwordErrors[0].msg) {
-              errorMessage = passwordErrors[0].msg;
-            } else if (detail[0]?.msg) {
-              errorMessage = detail[0].msg;
-            }
-          } else if (typeof errorResponse.response.data.detail === 'string') {
-            errorMessage = errorResponse.response.data.detail;
-          }
-        } else if (errorResponse.message && errorResponse.message !== 'Request failed with status code 422') {
-          errorMessage = errorResponse.message;
-        }
-      }
-      
+      const errorMessage = extractFormError(error, 'Failed to create user. Please try again.', 'password');
       toast.error(errorMessage);
     }
   };
