@@ -217,6 +217,10 @@ export class AuthService {
 
   // Authentication methods
   public async login(credentials: LoginRequest): Promise<LoginResponse> {
+    // SECURITY: Clear any existing session data before logging in
+    // Prevents stale session from previous user if they didn't explicitly logout
+    this.clearTokens();
+
     try {
       console.log('🔑 Attempting login for:', credentials.email);
       console.log('🌐 Login request details:', {
@@ -286,26 +290,28 @@ export class AuthService {
   }
 
   public async logout(): Promise<LogoutResponse> {
-    // Always clear local tokens first to prevent cascading auth errors
-    // This ensures the user is logged out locally even if backend call fails
-    const hadToken = !!this.getAccessToken();
-    this.clearTokens();
+    // Save the token before clearing so we can use it for the backend call
+    const token = this.getAccessToken();
 
-    // Only attempt backend logout if we had a token
-    if (hadToken) {
+    // Only attempt backend logout if we have a token
+    if (token) {
       try {
-        // Note: This will fail if token was already invalid, but that's OK
-        // We've already cleared local tokens above
+        // Make API call with the token before clearing local storage
         const response = await this.api.post<LogoutResponse>('/auth/logout');
         console.log('✅ Backend logout successful');
+        // Clear tokens after successful backend logout
+        this.clearTokens();
         return response.data;
       } catch (error) {
-        // Silently handle backend logout failures - user is already logged out locally
-        console.log('ℹ️ Backend logout skipped (session may have already expired)');
+        // Clear tokens even if backend fails - ensures local logout
+        this.clearTokens();
+        console.log('ℹ️ Backend logout failed, cleared local session');
         return { message: 'Logged out locally', logged_out_at: new Date().toISOString() };
       }
     }
 
+    // No token - just ensure local state is clean
+    this.clearTokens();
     return { message: 'Logged out successfully', logged_out_at: new Date().toISOString() };
   }
 
@@ -316,6 +322,47 @@ export class AuthService {
     } catch (error) {
       console.error('Token validation failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Refresh user session data from the backend validate endpoint
+   * This is useful when user's org affiliation may have changed or session data seems stale
+   * Returns true if user data was updated, false if validation failed
+   */
+  public async refreshUserSession(): Promise<boolean> {
+    try {
+      console.log('🔄 Refreshing user session data from backend...');
+      const validation = await this.validateToken();
+
+      if (validation.valid && validation.user) {
+        const currentUser = this.getUser();
+        const newUser = validation.user;
+
+        // Log if org affiliation changed (potential multi-tenancy fix)
+        if (currentUser && (currentUser.org_id !== newUser.org_id || currentUser.org_name !== newUser.org_name)) {
+          console.warn('⚠️ User organization affiliation changed:', {
+            previous: { org_id: currentUser.org_id, org_name: currentUser.org_name },
+            current: { org_id: newUser.org_id, org_name: newUser.org_name },
+          });
+        }
+
+        // Update stored user with fresh data from backend
+        this.setUser(newUser);
+        console.log('✅ User session data refreshed successfully:', {
+          user_id: newUser.user_id,
+          email: newUser.email,
+          org_id: newUser.org_id,
+          org_name: newUser.org_name,
+        });
+        return true;
+      }
+
+      console.warn('⚠️ Token validation returned invalid or no user data');
+      return false;
+    } catch (error) {
+      console.error('❌ Failed to refresh user session data:', error);
+      return false;
     }
   }
 
@@ -468,6 +515,28 @@ export class AuthService {
     this.setRefreshToken(refresh_token);
     this.setAccessTokenExpiry(overrideAccessExpiry); // Use frontend-calculated expiry
     this.setRefreshTokenExpiry(overrideRefreshExpiry); // Use frontend-calculated expiry
+
+    // SECURITY: Log user session data for debugging multi-tenancy issues
+    // If backend returns mismatched org_id/user_id, this helps diagnose
+    console.log('🔐 Storing session user data:', {
+      user_id: user.user_id,
+      email: user.email,
+      org_id: user.org_id,
+      org_name: user.org_name,
+      role: user.role,
+      session_id: user.session_id,
+    });
+
+    // Validate session data completeness
+    if (!user.org_id || !user.org_name || !user.user_id) {
+      console.error('⚠️ CRITICAL: Backend returned incomplete user session data', {
+        missingOrgId: !user.org_id,
+        missingOrgName: !user.org_name,
+        missingUserId: !user.user_id,
+        fullUser: user,
+      });
+    }
+
     this.setUser(user);
   }
 
