@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AuthContextType,
   AuthState,
@@ -20,7 +21,8 @@ type AuthAction =
   | { type: 'AUTH_LOGOUT' }
   | { type: 'CLEAR_ERROR' }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_INITIALIZED'; payload: boolean };
+  | { type: 'SET_INITIALIZED'; payload: boolean }
+  | { type: 'UPDATE_USER'; payload: SessionUser };
 
 const initialState: AuthState = {
   user: null,
@@ -125,6 +127,11 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         ...state,
         hasInitialized: action.payload,
       };
+    case 'UPDATE_USER':
+      return {
+        ...state,
+        user: action.payload,
+      };
     default:
       return state;
   }
@@ -144,13 +151,39 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Clear all session-related storage to prevent stale data from previous user
+ * This includes sessionStorage contexts used by AI content, chat, extraction, etc.
+ */
+function clearSessionStorage(): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    // Clear all sessionStorage to remove any stale context data
+    // This includes: chat context, AI content context, parse results, extraction context
+    sessionStorage.clear();
+    console.log('🧹 Cleared sessionStorage on auth state change');
+  } catch (error) {
+    console.warn('Failed to clear sessionStorage:', error);
+  }
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const queryClient = useQueryClient();
 
   const login = async (credentials: LoginRequest): Promise<void> => {
     try {
       dispatch({ type: 'AUTH_START' });
-      
+
+      // SECURITY: Clear React Query cache before login to prevent stale data from previous user
+      // This ensures no cached data from a previous session is displayed to the new user
+      console.log('🧹 Clearing React Query cache before login...');
+      queryClient.clear();
+
+      // Clear sessionStorage to remove any stale context data (chat, AI content, etc.)
+      clearSessionStorage();
+
       console.log('🔑 Attempting login for:', credentials.email);
       const response = await authService.login(credentials);
       
@@ -182,7 +215,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (data: RegisterRequest): Promise<void> => {
     try {
       dispatch({ type: 'AUTH_START' });
-      
+
+      // SECURITY: Clear React Query cache before registration to prevent stale data
+      console.log('🧹 Clearing React Query cache before registration...');
+      queryClient.clear();
+      clearSessionStorage();
+
       const response = await authService.register(data);
       
       console.log('🔍 Registration response received:', {
@@ -221,9 +259,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Backend logout failed, proceeding with local logout:', error);
     } finally {
+      // SECURITY: Clear React Query cache on logout to prevent stale data
+      // This ensures no cached data from the logged-out user is accessible
+      console.log('🧹 Clearing React Query cache on logout...');
+      queryClient.clear();
+
+      // Clear sessionStorage to remove any context data
+      clearSessionStorage();
+
       dispatch({ type: 'AUTH_LOGOUT' });
     }
-  }, []);
+  }, [queryClient]);
 
   const refreshTokens = async (): Promise<void> => {
     try {
@@ -252,6 +298,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const validateToken = async (): Promise<TokenValidationResponse> => {
     return await authService.validateToken();
+  };
+
+  /**
+   * Refresh user session data from the backend
+   * This is useful when user's org affiliation may have changed or to fix multi-tenancy header mismatches
+   * Returns true if user data was refreshed successfully
+   */
+  const refreshUserSession = async (): Promise<boolean> => {
+    try {
+      const success = await authService.refreshUserSession();
+      if (success) {
+        const updatedUser = authService.getUser();
+        if (updatedUser) {
+          dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+          console.log('✅ AuthContext: User session refreshed and state updated');
+        }
+      }
+      return success;
+    } catch (error) {
+      console.error('❌ AuthContext: Failed to refresh user session:', error);
+      return false;
+    }
   };
 
   const isSessionExpired = useCallback((): boolean => {
@@ -414,6 +482,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     refreshTokens,
     validateToken,
+    refreshUserSession,
     clearError,
     hasRole: checkRole,
     hasPermission: checkPermission,

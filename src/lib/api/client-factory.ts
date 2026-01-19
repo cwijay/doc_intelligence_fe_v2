@@ -76,9 +76,25 @@ function createRequestInterceptor(config: ApiClientConfig) {
         requestConfig.headers.Authorization = `${HEADERS.AUTH_SCHEME} ${token}`;
       }
 
+      const user = authService.getUser();
+
+      // SECURITY: Validate user session data consistency
+      // If org_id/org_name or user_id are missing, the session may be corrupted
+      if (user) {
+        const hasMissingFields = !user.org_id || !user.org_name || !user.user_id;
+        if (hasMissingFields) {
+          console.warn('⚠️ Session data integrity warning: Missing required fields', {
+            hasOrgId: !!user.org_id,
+            hasOrgName: !!user.org_name,
+            hasUserId: !!user.user_id,
+            email: user.email,
+            hint: 'User may need to re-login to refresh session data'
+          });
+        }
+      }
+
       // Add organization header if configured
       if (config.includeOrgHeader !== false) {
-        const user = authService.getUser();
         // AI API expects org_name, Main API expects org_id
         if (config.useOrgName) {
           if (user?.org_name) {
@@ -88,6 +104,17 @@ function createRequestInterceptor(config: ApiClientConfig) {
           if (user?.org_id) {
             requestConfig.headers[HEADERS.ORG_ID] = user.org_id;
           }
+        }
+      }
+
+      // Add user authentication headers for AI API multi-tenancy validation
+      // SECURITY: AI API validates that user belongs to claimed organization
+      if (config.includeOrgHeader !== false && user) {
+        if (user.user_id) {
+          requestConfig.headers[HEADERS.USER_ID] = user.user_id;
+        }
+        if (user.email) {
+          requestConfig.headers[HEADERS.USER_EMAIL] = user.email;
         }
       }
     }
@@ -101,6 +128,7 @@ function createRequestInterceptor(config: ApiClientConfig) {
         baseURL: requestConfig.baseURL,
         hasAuth: !!requestConfig.headers.Authorization,
         hasOrgId: !!requestConfig.headers[HEADERS.ORG_ID],
+        hasUserId: !!requestConfig.headers[HEADERS.USER_ID],
       });
     }
 

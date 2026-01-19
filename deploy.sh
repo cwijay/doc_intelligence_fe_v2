@@ -8,7 +8,7 @@ set -e  # Exit on any error
 # Default values
 PROJECT_ID="biz2bricks-dev-v1"
 REGION="us-central1"
-SERVICE_NAME="document-intelligence-frontend"
+SERVICE_NAME="document-intelligence-ui-dev"
 SKIP_BUILD=false
 ENABLE_APIS=true
 TAG=""
@@ -118,56 +118,50 @@ IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 IMAGE_TAG="${IMAGE_NAME}:${TAG}"
 LATEST_TAG="${IMAGE_NAME}:latest"
 
-# API configuration
-API_BASE_URL="https://document-intelligence-api-726919062103.us-central1.run.app"
-API_URL="${API_BASE_URL}/api/v1"
-RAG_API_BASE_URL="https://document-intelligence-ai-726919062103.us-central1.run.app"
-RAG_API_URL="${RAG_API_BASE_URL}/api/v1/rag"
-NEXT_PUBLIC_RAG_PROXY_BASE_URL="/api/rag"
-NEXT_PUBLIC_RAG_PROXY_URL="/api/v1/rag"
-EXCEL_API_URL="https://document-intelligence-ai-726919062103.us-central1.run.app/api/excel"
-INGEST_API_EXTERNAL_BASE_URL="https://document-intelligence-ai-726919062103.us-central1.run.app"
-INGEST_API_EXTERNAL_URL="${INGEST_API_EXTERNAL_BASE_URL}/api/v1/ingest"
-INGEST_API_PROXY_BASE_URL="/api/ingest"
+# Simplified 2-URL API configuration
+MAIN_API_URL="https://document-intelligence-api-dev-tfibpeg5zq-uc.a.run.app"
+AI_API_URL="https://document-intelligence-ai-api-dev-tfibpeg5zq-uc.a.run.app"
 
 log_info "Starting deployment of ${SERVICE_NAME} to Cloud Run..."
 log_info "Project ID: ${PROJECT_ID}"
 log_info "Region: ${REGION}"
 log_info "Image: ${IMAGE_TAG}"
+log_info "Main API: ${MAIN_API_URL}"
+log_info "AI API: ${AI_API_URL}"
 echo "----------------------------------------"
 
 # Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     # Check if gcloud is installed
     if ! command -v gcloud &> /dev/null; then
         log_error "gcloud CLI is not installed. Please install Google Cloud SDK."
         exit 1
     fi
-    
+
     # Check if Docker is installed
     if ! command -v docker &> /dev/null; then
         log_error "Docker is not installed. Please install Docker."
         exit 1
     fi
-    
+
     # Check if Docker is running
     if ! docker info &> /dev/null; then
         log_error "Docker is not running. Please start Docker."
         exit 1
     fi
-    
+
     # Check if authenticated with gcloud
     if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
         log_error "Not authenticated with gcloud. Run 'gcloud auth login'"
         exit 1
     fi
-    
+
     # Set the project
     log_info "Setting project to ${PROJECT_ID}..."
     gcloud config set project "${PROJECT_ID}"
-    
+
     log_success "Prerequisites check passed!"
 }
 
@@ -190,21 +184,21 @@ build_and_push_image() {
         log_info "Skipping build, using existing image: ${LATEST_TAG}"
         return
     fi
-    
+
     log_info "Building Docker image: ${IMAGE_TAG}"
-    
+
     # Build the image with both tags for AMD64/Linux platform (required by Cloud Run)
     docker build --platform linux/amd64 -t "${IMAGE_TAG}" -t "${LATEST_TAG}" .
-    
+
     # Configure Docker to use gcloud as credential helper
     log_info "Configuring Docker authentication..."
     gcloud auth configure-docker --quiet
-    
+
     # Push both tags
     log_info "Pushing Docker image: ${IMAGE_TAG}"
     docker push "${IMAGE_TAG}"
     docker push "${LATEST_TAG}"
-    
+
     log_success "Docker image pushed successfully!"
 }
 
@@ -216,11 +210,11 @@ deploy_to_cloudrun() {
     else
         image_to_deploy="${IMAGE_TAG}"
     fi
-    
+
     log_info "Deploying to Cloud Run: ${SERVICE_NAME}"
     log_info "Using image: ${image_to_deploy}"
-    
-    # Deploy to Cloud Run with all configuration
+
+    # Deploy to Cloud Run with simplified 2-URL configuration
     gcloud run deploy "${SERVICE_NAME}" \
         --image="${image_to_deploy}" \
         --region="${REGION}" \
@@ -234,23 +228,12 @@ deploy_to_cloudrun() {
         --timeout=300 \
         --concurrency=80 \
         --set-env-vars="NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1,HOSTNAME=0.0.0.0" \
-        --set-env-vars="NEXT_PUBLIC_API_BASE_URL=${API_BASE_URL}" \
-        --set-env-vars="NEXT_PUBLIC_API_URL=${API_URL}" \
-        --set-env-vars="NEXT_PUBLIC_RAG_API_BASE_URL=${NEXT_PUBLIC_RAG_PROXY_BASE_URL}" \
-        --set-env-vars="NEXT_PUBLIC_RAG_API_URL=${NEXT_PUBLIC_RAG_PROXY_URL}" \
-        --set-env-vars="NEXT_PUBLIC_EXCEL_API_URL=${EXCEL_API_URL}" \
-        --set-env-vars="NEXT_PUBLIC_INGEST_API_BASE_URL=${INGEST_API_PROXY_BASE_URL}" \
-        --set-env-vars="NEXT_PUBLIC_INGEST_API_URL=${INGEST_API_PROXY_BASE_URL}" \
-        --set-env-vars="NEXT_PUBLIC_APP_NAME=biz-2-bricks-fe-v1,NEXT_PUBLIC_APP_VERSION=1.0.0" \
-        --set-env-vars="NEXT_PUBLIC_USE_API_PROXY=true" \
-        --set-env-vars="API_BASE_URL=${API_BASE_URL}" \
-        --set-env-vars="API_URL=${API_URL}" \
-        --set-env-vars="RAG_API_BASE_URL=${RAG_API_BASE_URL}" \
-        --set-env-vars="RAG_API_URL=${RAG_API_URL}" \
-        --set-env-vars="EXCEL_API_URL=${EXCEL_API_URL}" \
-        --set-env-vars="INGEST_API_BASE_URL=${INGEST_API_EXTERNAL_BASE_URL}" \
-        --set-env-vars="INGEST_API_URL=${INGEST_API_EXTERNAL_URL}"
-    
+        --set-env-vars="NEXT_PUBLIC_API_URL=${MAIN_API_URL}" \
+        --set-env-vars="NEXT_PUBLIC_AI_API_URL=${AI_API_URL}" \
+        --set-env-vars="NEXT_PUBLIC_APP_NAME=Biz-To-Bricks" \
+        --set-env-vars="NEXT_PUBLIC_APP_VERSION=1.0.0" \
+        --set-env-vars="NEXT_PUBLIC_AUTH_ENABLED=true"
+
     log_success "Deployment completed!"
 }
 
@@ -260,7 +243,7 @@ get_service_url() {
     SERVICE_URL=$(gcloud run services describe "${SERVICE_NAME}" \
         --region="${REGION}" \
         --format="value(status.url)")
-    
+
     if [[ -n "$SERVICE_URL" ]]; then
         log_success "Service URL: ${SERVICE_URL}"
         echo "SERVICE_URL=${SERVICE_URL}" > .deployment-info
@@ -276,15 +259,15 @@ health_check() {
         log_warning "Service URL not available, skipping health check"
         return
     fi
-    
+
     log_info "Performing health check..."
     local health_url="${SERVICE_URL}/api/health"
     local max_attempts=10
     local attempt=1
-    
+
     while [[ $attempt -le $max_attempts ]]; do
         log_info "Health check attempt ${attempt}/${max_attempts}..."
-        
+
         if curl -f -s "${health_url}" > /dev/null 2>&1; then
             log_success "Health check passed! Service is healthy at ${SERVICE_URL}"
             return 0
@@ -295,10 +278,10 @@ health_check() {
                 sleep 10
             fi
         fi
-        
+
         ((attempt++))
     done
-    
+
     log_error "Health check failed after all attempts"
     return 1
 }
@@ -313,22 +296,22 @@ cleanup() {
 main() {
     # Set trap for cleanup
     trap cleanup EXIT
-    
+
     # Run deployment steps
     check_prerequisites
     enable_apis
     build_and_push_image
     deploy_to_cloudrun
     get_service_url
-    
+
     echo "----------------------------------------"
     log_success "Deployment completed successfully!"
     log_success "Service URL: ${SERVICE_URL:-'Check Cloud Console'}"
     log_success "Image: ${IMAGE_TAG}"
-    
+
     # Perform health check
     health_check
-    
+
     echo "----------------------------------------"
     echo "Next steps:"
     echo "1. Visit your service at: ${SERVICE_URL:-'Check Cloud Console'}"

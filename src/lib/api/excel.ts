@@ -35,12 +35,22 @@ sheetsApi.interceptors.request.use(
       config.headers['X-Organization-ID'] = user.org_name;
     }
 
+    // Add user authentication headers for AI API multi-tenancy validation
+    // SECURITY: AI API validates that user belongs to claimed organization
+    if (user?.user_id) {
+      config.headers['X-User-ID'] = user.user_id;
+    }
+    if (user?.email) {
+      config.headers['X-User-Email'] = user.email;
+    }
+
     console.log('📊 Sheets API Request:', {
       url: config.url,
       method: config.method,
       baseURL: config.baseURL,
       hasToken: !!token,
-      orgName: user?.org_name || 'none'
+      orgName: user?.org_name || 'none',
+      hasUserId: !!user?.user_id
     });
 
     return config;

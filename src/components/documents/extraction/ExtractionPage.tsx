@@ -289,8 +289,8 @@ function ExtractionWorkflow({ pageState }: ExtractionWorkflowProps) {
         </div>
       )}
 
-      {/* Step content - full viewport height */}
-      <div className="flex-1 overflow-hidden p-6 flex flex-col">
+      {/* Step content - scrollable */}
+      <div className="flex-1 overflow-y-auto p-6">
         {renderStepContent()}
       </div>
 

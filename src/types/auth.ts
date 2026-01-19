@@ -124,6 +124,8 @@ export interface AuthContextType extends AuthState {
   logout: () => Promise<void>;
   refreshTokens: () => Promise<void>;
   validateToken: () => Promise<TokenValidationResponse>;
+  /** Refresh user session data from backend to fix org affiliation mismatches */
+  refreshUserSession: () => Promise<boolean>;
   clearError: () => void;
   hasRole: (role: UserRole) => boolean;
   hasPermission: (permission: string) => boolean;

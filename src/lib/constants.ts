@@ -269,6 +269,10 @@ export const HEADERS = {
   ORG_ID: 'X-Organization-ID',
   /** Organization Name header name (used by AI API - expects org name string) */
   ORG_NAME: 'X-Organization-Name',
+  /** User ID header name (for AI API multi-tenancy validation) */
+  USER_ID: 'X-User-ID',
+  /** User Email header name (for AI API multi-tenancy validation) */
+  USER_EMAIL: 'X-User-Email',
   /** Authorization scheme */
   AUTH_SCHEME: 'Bearer',
 } as const;
