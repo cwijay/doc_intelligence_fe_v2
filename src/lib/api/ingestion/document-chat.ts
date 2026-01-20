@@ -88,10 +88,16 @@ export async function chatWithDocumentsStream(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Add organization header (AI API expects org_name)
+  // Add organization and user headers (AI API requires these for multi-tenancy)
   const user = authService.getUser();
   if (user?.org_name) {
     headers[HEADERS.ORG_ID] = user.org_name;
+  }
+  if (user?.user_id) {
+    headers[HEADERS.USER_ID] = user.user_id;
+  }
+  if (user?.email) {
+    headers[HEADERS.USER_EMAIL] = user.email;
   }
 
   const response = await fetch(url, {
