@@ -730,6 +730,140 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 FROM node:18-alpineWORKDIR /app# Copy package filesCOPY package*.json ./RUN npm ci --only=production# Copy source codeCOPY . .# Build applicationRUN npm run buildEXPOSE 3000CMD ["npm", "start"]
 ```
 
+## GCP Deployment
+
+This section covers deploying the Next.js frontend to Google Cloud Run.
+
+### Prerequisites
+
+- **Google Cloud SDK** installed and configured
+- **Docker** installed locally
+- **GCP Project** with billing enabled
+- Access to Artifact Registry repository
+
+```bash
+# Authenticate with Google Cloud
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+
+# Authenticate Docker with Artifact Registry
+gcloud auth configure-docker us-central1-docker.pkg.dev
+```
+
+### Required GCP APIs
+
+```bash
+gcloud services enable \
+  run.googleapis.com \
+  artifactregistry.googleapis.com \
+  cloudbuild.googleapis.com
+```
+
+### Manual Deployment
+
+```bash
+# Build and deploy to development
+gcloud builds submit --config cloudbuild.yaml
+
+# Deploy to production (override substitutions)
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_ENV=prod,_SERVICE_NAME=document-intelligence-ui-prod
+
+# Deploy with custom API URLs
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_BACKEND_API_URL=https://your-backend.run.app,_AI_API_URL=https://your-ai-api.run.app
+```
+
+### CI/CD Triggers
+
+Set up automatic deployments from GitHub:
+
+```bash
+# Run the setup script
+./scripts/gcp/setup_triggers.sh
+```
+
+**Trigger Configuration:**
+
+| Trigger | Branch | Service Name |
+|---------|--------|--------------|
+| `frontend-dev-deploy` | `develop` | `document-intelligence-ui-dev` |
+| `frontend-prod-deploy` | `master` | `document-intelligence-ui-prod` |
+
+### Cloud Run Service Details
+
+| Setting | Development | Production |
+|---------|-------------|------------|
+| Service Name | `document-intelligence-ui-dev` | `document-intelligence-ui-prod` |
+| Port | 3000 | 3000 |
+| Memory | 512Mi | 512Mi |
+| CPU | 1 | 1 |
+| Min Instances | 0 | 0 |
+| Max Instances | 5 | 10 |
+
+### Environment Variables
+
+The frontend uses build-time environment variables passed via Docker build args:
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_API_URL` | Backend API URL (Main API) |
+| `NEXT_PUBLIC_AI_API_URL` | AI API URL |
+| `NEXT_PUBLIC_APP_NAME` | Application name |
+| `NEXT_PUBLIC_APP_VERSION` | Application version |
+| `NEXT_PUBLIC_AUTH_ENABLED` | Enable authentication |
+
+### Verification
+
+```bash
+# Get service URL
+SERVICE_URL=$(gcloud run services describe document-intelligence-ui-dev \
+  --region=us-central1 --format="value(status.url)")
+
+# Test the frontend loads
+curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL"
+# Expected: 200
+```
+
+### Rollback
+
+```bash
+# List recent revisions
+gcloud run revisions list \
+  --service=document-intelligence-ui-dev \
+  --region=us-central1
+
+# Rollback to a specific revision
+./scripts/gcp/rollback.sh document-intelligence-ui-dev REVISION_NAME
+
+# Or manually route traffic
+gcloud run services update-traffic document-intelligence-ui-dev \
+  --region=us-central1 \
+  --to-revisions=REVISION_NAME=100
+```
+
+### Troubleshooting
+
+**Build fails with "NEXT_PUBLIC_ variables not set":**
+- Ensure build args are passed correctly in `cloudbuild.yaml`
+- Verify the Dockerfile accepts and uses the build args
+
+**Service returns 503:**
+```bash
+# Check service logs
+gcloud run services logs read document-intelligence-ui-dev \
+  --region=us-central1 --limit=50
+
+# Check container startup
+gcloud logging read "resource.type=cloud_run_revision AND \
+  resource.labels.service_name=document-intelligence-ui-dev" \
+  --limit=50
+```
+
+**API calls fail (CORS errors):**
+- Verify `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_AI_API_URL` are set correctly
+- Check that backend services have CORS configured for the frontend domain
+
 ## 🤝 Contributing
 
 1.  Fork the repository
