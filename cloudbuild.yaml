@@ -1,61 +1,176 @@
-# Cloud Build configuration for Next.js frontend deployment to Cloud Run
-steps:
-  # Step 1: Build the Docker image for AMD64/Linux platform
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'build',
-      '--platform', 'linux/amd64',
-      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:$BUILD_ID',
-      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:latest',
-      '.'
-    ]
-    id: 'build-image'
+# =============================================================================
+# Cloud Build: Document Intelligence Frontend (Next.js)
+# =============================================================================
+# Automated CI/CD pipeline for Cloud Run deployment with GitHub integration.
+#
+# Triggers:
+#   - develop branch → dev environment
+#   - master branch → prod environment
+#
+# Manual deployment:
+#   gcloud builds submit --config cloudbuild.yaml
+#   gcloud builds submit --config cloudbuild.yaml --substitutions=_ENV=prod
+#
+# Timeline: ~5-7 minutes
+# =============================================================================
 
-  # Step 2: Push the Docker image to Artifact Registry
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: 100
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: 'ALLOW_LOOSE'
+
+timeout: '1800s'
+
+steps:
+  # Step 1: Build Docker image with build-time environment variables
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:latest']
+    id: 'build-image'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_URL=${_BACKEND_API_URL}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_AI_API_URL=${_AI_API_URL}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_APP_NAME=${_APP_NAME}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_APP_VERSION=${_APP_VERSION}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_AUTH_ENABLED=${_AUTH_ENABLED}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:$BUILD_ID'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:${_ENV}-latest'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:latest'
+      - '.'
+
+  # Step 2: Push all image tags to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
     id: 'push-image'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend'
     waitFor: ['build-image']
 
   # Step 3: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-to-cloudrun'
     entrypoint: 'gcloud'
     args:
       - 'run'
       - 'deploy'
-      - 'document-intelligence-ui-dev'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:latest'
-      - '--region=us-central1'
+      - '${_SERVICE_NAME}'
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:$BUILD_ID'
+      - '--region=${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--port=3000'
-      - '--cpu=1'
-      - '--memory=512Mi'
-      - '--min-instances=0'
-      - '--max-instances=10'
-      - '--timeout=300'
-      - '--concurrency=80'
-      # Simplified 2-URL configuration
-      - '--set-env-vars=NEXT_PUBLIC_API_URL=https://document-intelligence-api-dev-tfibpeg5zq-uc.a.run.app'
-      - '--set-env-vars=NEXT_PUBLIC_AI_API_URL=https://document-intelligence-ai-api-dev-tfibpeg5zq-uc.a.run.app'
-      - '--set-env-vars=NEXT_PUBLIC_APP_NAME=Biz-To-Bricks'
-      - '--set-env-vars=NEXT_PUBLIC_APP_VERSION=1.0.0'
-      - '--set-env-vars=NEXT_PUBLIC_AUTH_ENABLED=true'
+      - '--cpu=${_CPU}'
+      - '--memory=${_MEMORY}'
+      - '--min-instances=${_MIN_INSTANCES}'
+      - '--max-instances=${_MAX_INSTANCES}'
+      - '--timeout=${_TIMEOUT}'
+      - '--concurrency=${_CONCURRENCY}'
+      - '--set-env-vars=NEXT_PUBLIC_API_URL=${_BACKEND_API_URL}'
+      - '--set-env-vars=NEXT_PUBLIC_AI_API_URL=${_AI_API_URL}'
+      - '--set-env-vars=NEXT_PUBLIC_APP_NAME=${_APP_NAME}'
+      - '--set-env-vars=NEXT_PUBLIC_APP_VERSION=${_APP_VERSION}'
+      - '--set-env-vars=NEXT_PUBLIC_AUTH_ENABLED=${_AUTH_ENABLED}'
       - '--set-env-vars=NODE_ENV=production'
       - '--set-env-vars=NEXT_TELEMETRY_DISABLED=1'
       - '--set-env-vars=HOSTNAME=0.0.0.0'
-    id: 'deploy-to-cloudrun'
     waitFor: ['push-image']
 
-# Configuration
-options:
-  logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_HIGHCPU_8'
+  # Step 4: Health check
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'health-check'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Running health checks..."
 
-# Timeout for the entire build
-timeout: '1200s'
+        # Get service URL
+        SERVICE_URL=$$(gcloud run services describe ${_SERVICE_NAME} --region=${_REGION} --format="value(status.url)")
+        echo "Service URL: $$SERVICE_URL"
 
-# Images to push to Artifact Registry
+        # Wait for service to be ready
+        echo "Waiting 15 seconds for service to initialize..."
+        sleep 15
+
+        # Test that the app loads (accept 2xx and 3xx as valid)
+        echo "Testing frontend loads..."
+        HTTP_STATUS=$$(curl -s -o /dev/null -w "%{http_code}" "$$SERVICE_URL")
+        if [ "$$HTTP_STATUS" -ge 200 ] && [ "$$HTTP_STATUS" -lt 400 ]; then
+          echo "Frontend health check passed! (HTTP $$HTTP_STATUS)"
+        else
+          echo "Frontend health check failed! (HTTP $$HTTP_STATUS)"
+          exit 1
+        fi
+
+        echo ""
+        echo "Deployment complete!"
+        echo "Environment: ${_ENV}"
+        echo "Service URL: $$SERVICE_URL"
+    waitFor: ['deploy-to-cloudrun']
+
+# Substitution variables
+# Override these via Cloud Build triggers or --substitutions flag
+substitutions:
+  # Core settings
+  _ENV: 'dev'
+  _REGION: 'us-central1'
+  _SERVICE_NAME: 'document-intelligence-ui-dev'
+
+  # Resource limits
+  _CPU: '1'
+  _MEMORY: '512Mi'
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '5'
+  _TIMEOUT: '300'
+  _CONCURRENCY: '80'
+
+  # API URLs (environment-specific)
+  _BACKEND_API_URL: 'https://document-intelligence-api-dev-tfibpeg5zq-uc.a.run.app'
+  _AI_API_URL: 'https://document-intelligence-ai-api-dev-tfibpeg5zq-uc.a.run.app'
+
+  # App configuration
+  _APP_NAME: 'Biz-To-Bricks'
+  _APP_VERSION: '1.0.0'
+  _AUTH_ENABLED: 'true'
+
+# Store built images in Artifact Registry
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:$BUILD_ID'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:latest'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:$BUILD_ID'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:${_ENV}-latest'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:latest'
+
+# Tags for build organization
+tags:
+  - 'frontend'
+  - '${_ENV}'
+
+# =============================================================================
+# Trigger Configuration Reference
+# =============================================================================
+#
+# Development Trigger (develop branch):
+#   Name: frontend-dev-deploy
+#   Branch: ^develop$
+#   Substitutions: (use defaults)
+#
+# Production Trigger (master branch):
+#   Name: frontend-prod-deploy
+#   Branch: ^master$
+#   Substitutions:
+#     _ENV: prod
+#     _SERVICE_NAME: document-intelligence-ui-prod
+#     _MAX_INSTANCES: 10
+#     _BACKEND_API_URL: https://document-intelligence-api-prod-xxx.run.app
+#     _AI_API_URL: https://document-intelligence-ai-api-prod-xxx.run.app
+#
+# =============================================================================
