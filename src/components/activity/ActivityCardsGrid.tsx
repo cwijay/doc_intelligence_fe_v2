@@ -38,7 +38,7 @@ export function ActivityCardsGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
       {displayedActivities.map((activity, index) => (
         <ActivityCard
           key={activity.id}
@@ -56,7 +56,7 @@ interface ActivityCardsGridSkeletonProps {
 
 export function ActivityCardsGridSkeleton({ count = 6 }: ActivityCardsGridSkeletonProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
       {[...Array(count)].map((_, i) => (
         <ActivityCardSkeleton key={i} />
       ))}

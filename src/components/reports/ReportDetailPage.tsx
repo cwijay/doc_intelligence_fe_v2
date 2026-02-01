@@ -20,6 +20,7 @@ import {
 import { AppLayout } from '@/components/layout';
 import { useReportProgress } from '@/hooks/useReports';
 import { ReportStatusBadge } from './ReportStatusBadge';
+import { ReportCharts } from './ReportCharts';
 import { formatReportType, formatProcessingTime, formatCurrency } from '@/lib/api/reports';
 import { reportsApi } from '@/lib/api/reports';
 
@@ -74,38 +75,26 @@ export function ReportDetailPage() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-gray-50 dark:bg-secondary-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full py-8">
           {/* Breadcrumb */}
-          <nav className="flex mb-4" aria-label="Breadcrumb">
-            <ol className="inline-flex items-center space-x-1 md:space-x-3">
-              <li className="inline-flex items-center">
-                <Link
-                  href="/dashboard"
-                  className="text-sm font-medium text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
-                >
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <div className="flex items-center">
-                  <span className="mx-2 text-gray-400">/</span>
-                  <Link
-                    href="/reports"
-                    className="text-sm font-medium text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
-                  >
-                    Reports
-                  </Link>
-                </div>
-              </li>
-              <li>
-                <div className="flex items-center">
-                  <span className="mx-2 text-gray-400">/</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {report ? formatReportType(report.report_type) : 'Loading...'}
-                  </span>
-                </div>
-              </li>
-            </ol>
+          <nav className="flex items-center space-x-2 text-sm mb-4" aria-label="Breadcrumb">
+            <Link
+              href="/dashboard"
+              className="text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+            >
+              Dashboard
+            </Link>
+            <span className="text-gray-400">/</span>
+            <Link
+              href="/reports"
+              className="text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+            >
+              Reports
+            </Link>
+            <span className="text-gray-400">/</span>
+            <span className="font-medium text-gray-900 dark:text-white">
+              {report ? formatReportType(report.report_type) : 'Loading...'}
+            </span>
           </nav>
 
           {/* Back Button */}
@@ -351,6 +340,25 @@ export function ReportDetailPage() {
                       </div>
                     )}
                   </div>
+                </motion.div>
+              )}
+
+              {/* Charts Section */}
+              {isComplete && charts && charts.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.55 }}
+                  className="mb-6"
+                >
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <ChartPieIcon className="h-5 w-5 text-primary-600" />
+                    Charts & Visualizations
+                  </h2>
+                  <ReportCharts
+                    charts={charts}
+                    currencySymbol={report.options?.currency_symbol || '$'}
+                  />
                 </motion.div>
               )}
 

@@ -13,7 +13,7 @@ export default function UsagePage() {
   console.log('📊 UsagePage: Component rendering');
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         {/* Breadcrumb Navigation */}
         <nav className="flex items-center space-x-2 text-sm text-secondary-600 dark:text-secondary-400 mb-6">
           <Link

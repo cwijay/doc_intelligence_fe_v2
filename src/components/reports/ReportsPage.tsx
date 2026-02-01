@@ -11,7 +11,6 @@ import {
   ClockIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { AppLayout } from '@/components/layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,49 +34,20 @@ export default function ReportsPage() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-gray-50 dark:bg-secondary-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full py-8">
           {/* Breadcrumb */}
-          <nav className="flex mb-4" aria-label="Breadcrumb">
-            <ol className="inline-flex items-center space-x-1 md:space-x-3">
-              <li className="inline-flex items-center">
-                <Link
-                  href="/dashboard"
-                  className="text-sm font-medium text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
-                >
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <div className="flex items-center">
-                  <span className="mx-2 text-gray-400">/</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    Reports
-                  </span>
-                </div>
-              </li>
-            </ol>
+          <nav className="flex items-center space-x-2 text-sm mb-4" aria-label="Breadcrumb">
+            <Link
+              href="/dashboard"
+              className="text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+            >
+              Dashboard
+            </Link>
+            <span className="text-gray-400">/</span>
+            <span className="font-medium text-gray-900 dark:text-white">
+              Reports
+            </span>
           </nav>
-
-          {/* Under Construction Banner */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl p-4"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 bg-amber-100 dark:bg-amber-800/30 rounded-lg">
-                <WrenchScrewdriverIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                  Under Construction
-                </h3>
-                <p className="text-sm text-amber-700 dark:text-amber-400/80">
-                  The Business Intelligence Reports module is currently under active development. Some features may be limited or unavailable.
-                </p>
-              </div>
-            </div>
-          </motion.div>
 
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">

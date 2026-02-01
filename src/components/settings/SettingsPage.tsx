@@ -83,7 +83,7 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full">
         {/* Breadcrumb Navigation */}
         <nav className="flex items-center space-x-2 text-sm text-secondary-600 dark:text-secondary-400 mb-6">
           <Link

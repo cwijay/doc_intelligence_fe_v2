@@ -175,7 +175,7 @@ export default function DocumentTreeLayout() {
 
         {/* Content Area */}
         <main className="flex-1 overflow-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="w-full py-6 px-6">
             {/* Page Header */}
             <motion.div
               initial={{ opacity: 0, y: -10 }}
