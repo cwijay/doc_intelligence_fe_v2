@@ -77,8 +77,12 @@ export function CreateReportModal({ isOpen, onClose, orgId }: CreateReportModalP
     try {
       setIsSubmitting(true);
 
+      // Get the selected folder's name for direct path lookup
+      const selectedFolder = folders.find((f) => f.id === data.folder_id);
+
       const request: CreateReportRequest = {
         folder_id: data.folder_id,
+        folder_name: selectedFolder?.name,  // Include folder name for parsed path lookup
         report_type: data.report_type,
         include_charts: data.include_charts,
         include_recommendations: data.include_recommendations,

@@ -126,6 +126,7 @@ export interface Report extends ReportInfo {
 // API Request types
 export interface CreateReportRequest {
   folder_id: string;
+  folder_name?: string;  // Folder name for direct path lookup (avoids UUID resolution)
   report_type: ReportType;
   date_range_start?: string;
   date_range_end?: string;
