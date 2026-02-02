@@ -58,22 +58,19 @@ const LOCAL_PROXY_BASE_PATH = '/api/backend';
 const AI_LOCAL_PROXY_BASE_PATH = '/api/ai';
 
 const shouldUseLocalProxy = (): boolean => {
+  // Disable proxy only if explicitly set
   if (process.env.NEXT_PUBLIC_DISABLE_API_PROXY === 'true') {
     return false;
   }
 
-  const forceProxy = process.env.NEXT_PUBLIC_USE_API_PROXY === 'true';
-
+  // Server-side rendering doesn't use the proxy
   if (typeof window === 'undefined') {
     return false;
   }
 
-  if (forceProxy) {
-    return true;
-  }
-
-  const hostname = window.location.hostname;
-  return hostname === 'localhost' || hostname === '127.0.0.1';
+  // Always use proxy in browser to avoid CORS issues
+  // The /api/backend and /api/ai routes proxy requests to the backend APIs
+  return true;
 };
 
 export const getBrowserApiBaseUrl = (): string => {
