@@ -11,12 +11,12 @@ import {
 
 export const organizationsApi = {
   create: async (data: OrganizationCreateRequest): Promise<Organization> => {
-    const response: AxiosResponse<Organization> = await api.post('/organizations', data);
+    const response: AxiosResponse<Organization> = await api.post('/organizations/', data);
     return response.data;
   },
 
   list: async (filters?: OrganizationFilters): Promise<OrganizationList> => {
-    const response: AxiosResponse<OrganizationList> = await api.get('/organizations', {
+    const response: AxiosResponse<OrganizationList> = await api.get('/organizations/', {
       params: filters,
     });
     return response.data;
@@ -43,7 +43,7 @@ export const organizationsApi = {
   },
 
   getStats: async (): Promise<any> => {
-    const response = await api.get('/organizations/stats');
+    const response = await api.get('/organizations/stats/');
     return response.data;
   },
 };

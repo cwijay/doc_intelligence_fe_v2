@@ -15,8 +15,11 @@ const normalizeSegments = (segments: string[] | undefined): string[] => {
   return segments.filter(Boolean);
 };
 
-const buildTargetUrl = (request: NextRequest, segments: string[]): URL => {
-  const path = segments.join('/');
+const buildTargetUrl = (request: NextRequest, segments: string[], hasTrailingSlash: boolean): URL => {
+  let path = segments.join('/');
+  if (hasTrailingSlash && path && !path.endsWith('/')) {
+    path = `${path}/`;
+  }
   const base = serverConfig.aiApiBaseUrl;
   const baseUrl = new URL(base.endsWith('/') ? base : `${base}/`);
   const targetUrl = new URL(path, baseUrl);
@@ -33,7 +36,8 @@ const forwardRequest = async (request: NextRequest, context: RouteContext) => {
   try {
     const params = await context.params;
     const segments = normalizeSegments(params.path);
-    const targetUrl = buildTargetUrl(request, segments);
+    const hasTrailingSlash = request.nextUrl.pathname.endsWith('/');
+    let targetUrl = buildTargetUrl(request, segments, hasTrailingSlash);
 
     const headers = new Headers(request.headers);
     headers.set('host', targetUrl.host);
@@ -42,7 +46,7 @@ const forwardRequest = async (request: NextRequest, context: RouteContext) => {
     headers.delete('connection');
     headers.delete('accept-encoding');
 
-    let body: BodyInit | undefined;
+    let body: Buffer | undefined;
     if (!['GET', 'HEAD'].includes(request.method)) {
       const arrayBuffer = await request.arrayBuffer();
       if (arrayBuffer.byteLength > 0) {
@@ -50,12 +54,30 @@ const forwardRequest = async (request: NextRequest, context: RouteContext) => {
       }
     }
 
-    const response = await fetch(targetUrl, {
+    // Make the request with manual redirect handling
+    let response = await fetch(targetUrl, {
       method: request.method,
       headers,
       body,
       redirect: 'manual',
     });
+
+    // Handle 307/308 redirects manually to preserve method and body
+    if (response.status === 307 || response.status === 308) {
+      const location = response.headers.get('location');
+      if (location) {
+        targetUrl = new URL(location, targetUrl);
+        headers.set('host', targetUrl.host);
+        headers.set('origin', targetUrl.origin);
+
+        response = await fetch(targetUrl, {
+          method: request.method,
+          headers,
+          body,
+          redirect: 'manual',
+        });
+      }
+    }
 
     const responseHeaders = new Headers(response.headers);
     responseHeaders.delete('content-encoding');
