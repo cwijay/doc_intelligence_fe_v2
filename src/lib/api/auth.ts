@@ -23,18 +23,12 @@ export const authApi = {
   },
 
   getOrganizations: async (query?: string): Promise<Organization[]> => {
-    // Only send query parameter if provided, otherwise skip the call or use wildcard
-    // Empty query causes 422 validation error from backend
-    if (query === undefined || query === '') {
-      // For empty/undefined query, return empty array or fetch all orgs via different endpoint
-      // TODO: Backend should implement GET /auth/organizations without query parameter
-      return [];
-    }
+    // If query provided, use lookup endpoint for filtered search
+    // If no query, fetch all organizations
+    const endpoint = query ? '/auth/organizations/lookup' : '/auth/organizations';
+    const params = query ? { query } : undefined;
 
-    const params = { query };
-    const response: AxiosResponse<any> = await api.get('/auth/organizations/lookup', {
-      params,
-    });
+    const response: AxiosResponse<any> = await api.get(endpoint, { params });
 
     const data = response.data;
 
