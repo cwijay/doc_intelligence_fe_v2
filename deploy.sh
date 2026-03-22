@@ -232,7 +232,8 @@ deploy_to_cloudrun() {
         --set-env-vars="NEXT_PUBLIC_AI_API_URL=${AI_API_URL}" \
         --set-env-vars="NEXT_PUBLIC_APP_NAME=Biz-To-Bricks" \
         --set-env-vars="NEXT_PUBLIC_APP_VERSION=1.0.0" \
-        --set-env-vars="NEXT_PUBLIC_AUTH_ENABLED=true"
+        --set-env-vars="NEXT_PUBLIC_AUTH_ENABLED=true" \
+        --set-env-vars="NEXT_PUBLIC_GCS_BUCKET_NAME=biz2bricks-dev-v1-document-store"
 
     log_success "Deployment completed!"
 }

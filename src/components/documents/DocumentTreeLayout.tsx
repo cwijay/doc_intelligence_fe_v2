@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   ChevronRightIcon,
@@ -64,6 +64,13 @@ export default function DocumentTreeLayout() {
   // Upload state
   const [showUpload, setShowUpload] = useState(false);
   const [selectedUploadFolder, setSelectedUploadFolder] = useState<string | null>(null);
+
+  // Auto-sync upload folder when user selects a folder in tree view
+  useEffect(() => {
+    if (selectedFolderId) {
+      setSelectedUploadFolder(selectedFolderId);
+    }
+  }, [selectedFolderId]);
 
   // Create folder modal state
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);

@@ -39,6 +39,8 @@ steps:
       - 'NEXT_PUBLIC_APP_VERSION=${_APP_VERSION}'
       - '--build-arg'
       - 'NEXT_PUBLIC_AUTH_ENABLED=${_AUTH_ENABLED}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_GCS_BUCKET_NAME=${_GCS_BUCKET_NAME}'
       - '-t'
       - '${_REGION}-docker.pkg.dev/$PROJECT_ID/document-intelligence/frontend:$BUILD_ID'
       - '-t'
@@ -80,6 +82,7 @@ steps:
       - '--set-env-vars=NEXT_PUBLIC_APP_NAME=${_APP_NAME}'
       - '--set-env-vars=NEXT_PUBLIC_APP_VERSION=${_APP_VERSION}'
       - '--set-env-vars=NEXT_PUBLIC_AUTH_ENABLED=${_AUTH_ENABLED}'
+      - '--set-env-vars=NEXT_PUBLIC_GCS_BUCKET_NAME=${_GCS_BUCKET_NAME}'
       - '--set-env-vars=NODE_ENV=production'
       - '--set-env-vars=NEXT_TELEMETRY_DISABLED=1'
       - '--set-env-vars=HOSTNAME=0.0.0.0'
@@ -142,6 +145,7 @@ substitutions:
   _APP_NAME: 'Biz-To-Bricks'
   _APP_VERSION: '1.0.0'
   _AUTH_ENABLED: 'true'
+  _GCS_BUCKET_NAME: 'biz2bricks-dev-v1-document-store'
 
 # Store built images in Artifact Registry
 images:
