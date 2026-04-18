@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -98,94 +98,83 @@ export default function RegisterForm() {
     return true;
   };
 
-  const loadOrganizations = async () => {
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const searchOrganizations = useCallback(async (query?: string) => {
     try {
       setSearchingOrgs(true);
-      
-      // Check if we're in development mode with no backend
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Development mode: Attempting to load organizations...');
-        
-        // Try to connect with a short timeout for development
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Development timeout')), 3000)
-        );
-        
-        try {
-          const response = await Promise.race([
-            authApi.getOrganizations(),
-            timeoutPromise
-          ]) as { id: string; name: string; domain?: string; plan_type: string }[];
 
-          // Success - backend is available
-          const orgOptions = response.map((org: { id: string; name: string; domain?: string; plan_type: string }) => ({
-            id: org.id,
-            name: org.name,
-            domain: org.domain,
-            plan_type: org.plan_type,
-            allow_self_registration: true
-          }));
+      const fetchOrgs = async () => {
+        const response = await authApi.getOrganizations(query || undefined);
+        return response.map((org: { id: string; name: string; domain?: string; plan_type: string }) => ({
+          id: org.id,
+          name: org.name,
+          domain: org.domain,
+          plan_type: org.plan_type,
+          allow_self_registration: true
+        }));
+      };
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Searching organizations:', query || '(all)');
+
+        try {
+          const orgOptions = await Promise.race([
+            fetchOrgs(),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Development timeout')), 3000)
+            )
+          ]);
           setOrganizations(orgOptions);
-          console.log('✅ Organizations loaded from backend in development');
+          console.log('✅ Organizations loaded:', orgOptions.length);
           return;
         } catch {
-          console.log('⚠️ Backend not available in development, using fallback organizations');
-          
-          // Fallback organizations for development
+          console.log('⚠️ Backend not available, using fallback organizations');
           const fallbackOrgs = [
-            {
-              id: 'dev-org-1',
-              name: 'Development Organization',
-              domain: 'dev.local',
-              plan_type: 'enterprise',
-              allow_self_registration: true
-            },
-            {
-              id: 'dev-org-2', 
-              name: 'Test Company',
-              domain: 'test.local',
-              plan_type: 'professional',
-              allow_self_registration: true
-            }
+            { id: 'dev-org-1', name: 'Development Organization', domain: 'dev.local', plan_type: 'enterprise', allow_self_registration: true },
+            { id: 'dev-org-2', name: 'Test Company', domain: 'test.local', plan_type: 'professional', allow_self_registration: true }
           ];
-          
           setOrganizations(fallbackOrgs);
-          toast.success('Using development organizations (backend offline)');
           return;
         }
       }
-      
-      // Production mode - require backend connection
-      const response = await authApi.getOrganizations();
-      const orgOptions = response.map((org: { id: string; name: string; domain?: string; plan_type: string }) => ({
-        id: org.id,
-        name: org.name,
-        domain: org.domain,
-        plan_type: org.plan_type,
-        allow_self_registration: true
-      }));
+
+      const orgOptions = await fetchOrgs();
       setOrganizations(orgOptions);
-      
+
     } catch (error) {
       console.error('Failed to load organizations:', error);
-      
-      if (process.env.NODE_ENV === 'development') {
-        toast.error('Backend unavailable - check if services are running');
-        console.log('💡 Development tip: Start backend services or use offline development mode');
-      } else {
-        toast.error('Failed to load organizations - please try again');
-      }
-      
+      toast.error('Failed to load organizations - please try again');
       setOrganizations([]);
     } finally {
       setSearchingOrgs(false);
     }
-  };
-
-  // Load organizations on component mount
-  useEffect(() => {
-    loadOrganizations();
   }, []);
+
+  // Load all organizations on mount
+  useEffect(() => {
+    searchOrganizations();
+  }, [searchOrganizations]);
+
+  // Debounced search when user types in the search box
+  useEffect(() => {
+    if (registrationType !== 'join') return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      const query = organizationLookup.trim();
+      searchOrganizations(query || undefined);
+    }, 300);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [organizationLookup, registrationType, searchOrganizations]);
 
   const onSubmit = async (data: RegisterFormData) => {
     if (data.password !== data.confirmPassword) {
@@ -458,8 +447,15 @@ export default function RegisterForm() {
             </label>
             <div className="relative">
               <Input
-                {...register('organization_lookup')}
-                placeholder="Filter organizations..."
+                {...register('organization_lookup', {
+                  onChange: () => {
+                    // Clear selection when user modifies search text
+                    if (selectedOrganization) {
+                      setSelectedOrganization(null);
+                    }
+                  }
+                })}
+                placeholder="Search organizations..."
                 icon={<MagnifyingGlassIcon className="w-4 h-4" />}
               />
               {searchingOrgs && (
@@ -472,10 +468,7 @@ export default function RegisterForm() {
             {Array.isArray(organizations) && organizations.length > 0 && (
               <div className="max-h-40 overflow-y-auto border border-secondary-200 rounded-lg">
                 {organizations
-                  .filter(org => org && org.id && org.name && (!organizationLookup || 
-                    org.name.toLowerCase().includes(organizationLookup.toLowerCase()) ||
-                    (org.domain && org.domain.toLowerCase().includes(organizationLookup.toLowerCase()))
-                  ))
+                  .filter(org => org && org.id && org.name)
                   .map((org) => (
                     <button
                       key={org.id}

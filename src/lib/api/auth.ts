@@ -23,17 +23,18 @@ export const authApi = {
   },
 
   getOrganizations: async (query?: string): Promise<Organization[]> => {
-    // If query provided, use lookup endpoint for filtered search
-    // If no query, fetch all organizations
-    const endpoint = query ? '/auth/organizations/lookup' : '/auth/organizations';
-    const params = query ? { query } : undefined;
+    const params = query ? { name: query } : undefined;
 
-    const response: AxiosResponse<any> = await api.get(endpoint, { params });
+    const response: AxiosResponse<any> = await api.get('/organizations/', { params });
 
     const data = response.data;
 
     if (Array.isArray(data)) {
       return data as Organization[];
+    }
+
+    if (Array.isArray(data?.items)) {
+      return data.items as Organization[];
     }
 
     if (Array.isArray(data?.organizations)) {
