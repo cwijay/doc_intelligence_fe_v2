@@ -141,7 +141,9 @@ function createRequestInterceptor(config: ApiClientConfig) {
  */
 function createRequestErrorHandler(config: ApiClientConfig) {
   return (error: unknown) => {
-    console.error(`🚫 ${config.serviceName} API Request Error:`, error);
+    // console.warn (not error) so Next dev overlay doesn't treat
+    // handled request errors as uncaught runtime errors.
+    console.warn(`🚫 ${config.serviceName} API Request Error:`, error);
     return Promise.reject(error);
   };
 }
@@ -200,7 +202,9 @@ function createResponseErrorHandler(config: ApiClientConfig) {
       url: error.config?.url || 'Unknown URL',
       method: error.config?.method?.toUpperCase() || 'UNKNOWN'
     };
-    console.error(`❌ ${config.serviceName} API Error:`, JSON.stringify(errorDetails, null, 2));
+    // console.warn (not error) so Next dev overlay doesn't interrupt
+    // on HTTP failures that React Query already surfaces to the UI.
+    console.warn(`❌ ${config.serviceName} API Error:`, JSON.stringify(errorDetails, null, 2));
 
     // Determine error message
     let errorMessage = 'Unknown API error';
