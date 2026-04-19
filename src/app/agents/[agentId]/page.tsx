@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, Suspense } from 'react';
 import { AppLayout } from '@/components/layout';
 import AuthGuard from '@/components/guards/AuthGuard';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -36,8 +36,10 @@ function AgentDetailInner({ agentId }: { agentId: string }) {
 
   return (
     <div className="space-y-6">
-      <AgentDetailHeader agent={agent} />
-      <AgentDetailTabs agent={agent} />
+      <Suspense fallback={<Card><CardContent className="p-8 text-sm text-secondary-500 dark:text-secondary-400">Loading…</CardContent></Card>}>
+        <AgentDetailHeader agent={agent} />
+        <AgentDetailTabs agent={agent} />
+      </Suspense>
     </div>
   );
 }

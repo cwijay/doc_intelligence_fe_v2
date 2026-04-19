@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { PlayIcon, BeakerIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import Button from '@/components/ui/Button';
 import type { AgentDefinition } from '@/types/agents';
@@ -14,6 +15,16 @@ interface Props {
 
 export default function AgentDetailHeader({ agent }: Props) {
   const [runOpen, setRunOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const handleRunSuccess = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', 'Runs');
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    setRunOpen(false);
+  };
 
   return (
     <div className="space-y-3">
@@ -50,7 +61,7 @@ export default function AgentDetailHeader({ agent }: Props) {
           )}
         </div>
       </div>
-      <RunDialog agentId={agent.id} open={runOpen} onClose={() => setRunOpen(false)} />
+      <RunDialog agentId={agent.id} open={runOpen} onClose={() => setRunOpen(false)} onSuccess={handleRunSuccess} />
     </div>
   );
 }

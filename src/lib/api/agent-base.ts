@@ -6,9 +6,12 @@
 
 import { AxiosInstance } from 'axios';
 import { createApiClient, getAgentApiConfig } from './client-factory';
+import { clientConfig } from '@/lib/config';
 
 const config = getAgentApiConfig();
-console.log('🧩 Agent API client configured for:', config.baseURL);
+if (clientConfig.isDevelopment) {
+  console.log('🧩 Agent API client configured for:', config.baseURL);
+}
 
 const agentApi: AxiosInstance = createApiClient(config);
 

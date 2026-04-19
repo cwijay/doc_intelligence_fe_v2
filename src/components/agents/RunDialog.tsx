@@ -13,11 +13,12 @@ interface Props {
   agentId: string;
   open: boolean;
   onClose: () => void;
+  onSuccess?: (run: AgentRun) => void;
 }
 
 const DEFAULT_INPUT = `{\n  "query": "hello"\n}`;
 
-export default function RunDialog({ agentId, open, onClose }: Props) {
+export default function RunDialog({ agentId, open, onClose, onSuccess }: Props) {
   const [input, setInput] = useState(DEFAULT_INPUT);
   const [result, setResult] = useState<AgentRun | null>(null);
   const createRun = useCreateRun(agentId);
@@ -42,6 +43,7 @@ export default function RunDialog({ agentId, open, onClose }: Props) {
       const run = await createRun.mutateAsync({ inputPayload: payload });
       setResult(run);
       toast.success('Run completed');
+      onSuccess?.(run);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Run failed');
     }

@@ -61,7 +61,7 @@ export default function AgentCreateWizard() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg border border-secondary-300 dark:border-secondary-700 px-3 py-2 bg-white dark:bg-secondary-900"
+                className="w-full rounded-lg border border-secondary-300 dark:border-secondary-700 px-3 py-2 bg-white dark:bg-secondary-900 text-secondary-900 dark:text-secondary-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="e.g. Weekly summary bot"
               />
             </div>
@@ -72,7 +72,7 @@ export default function AgentCreateWizard() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full rounded-lg border border-secondary-300 dark:border-secondary-700 px-3 py-2 bg-white dark:bg-secondary-900"
+                className="w-full rounded-lg border border-secondary-300 dark:border-secondary-700 px-3 py-2 bg-white dark:bg-secondary-900 text-secondary-900 dark:text-secondary-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Optional: what does this agent do?"
               />
             </div>
