@@ -6,7 +6,7 @@
 
 import axios, { AxiosInstance, AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { authService } from '@/lib/auth';
-import { clientConfig, getBrowserAiApiBaseUrl } from '@/lib/config';
+import { clientConfig, getBrowserAiApiBaseUrl, getBrowserAgentApiBaseUrl } from '@/lib/config';
 import { HEADERS, TIMEOUTS } from '@/lib/constants';
 import { normalizeErrorMessage, createErrorMessage, isQuotaExceededError, formatQuotaExceededMessage } from './utils/error-utils';
 
@@ -247,6 +247,7 @@ function getServiceEmoji(serviceName: string): string {
     'AI': '🤖',
     'Ingestion': '📥',
     'RAG': '🔍',
+    'Agent': '🧩',
   };
   return emojiMap[serviceName] || '📡';
 }
@@ -344,3 +345,20 @@ export const RAG_API_CONFIG: ApiClientConfig = {
   useOrgName: true,  // AI API expects org_name, not org_id UUID
   handleUnauthorized: false,  // RAG API 401s should not trigger logout
 };
+
+/**
+ * Configuration for the Agent Builder API client (port 8010)
+ * Note: Agent Builder API expects organization UUID (org_id) in X-Organization-ID header.
+ */
+export const getAgentApiConfig = (): ApiClientConfig => ({
+  baseURL: typeof window !== 'undefined' ? getBrowserAgentApiBaseUrl() : clientConfig.agentApiBaseUrl,
+  timeout: TIMEOUTS.AGENT_API,
+  serviceName: 'Agent',
+  includeOrgHeader: true,
+  useOrgName: false, // Agent Builder API uses org_id (UUID), same as Main API
+  handleUnauthorized: false, // Agent Builder backend does not auth today
+  errorMessages: {
+    400: 'Invalid agent payload. Check the draft configuration.',
+    404: 'Agent, version, or run not found.',
+  },
+});
