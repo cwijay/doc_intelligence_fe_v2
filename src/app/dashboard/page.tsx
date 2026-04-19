@@ -20,6 +20,7 @@ import { useDocumentStats, useFolders } from '@/hooks/useFolders';
 import { useActivityTimeline } from '@/hooks/useInsights';
 import { useUsageSummary } from '@/hooks/useUsageHistory';
 import { useDocuments } from '@/hooks/useAllDocuments';
+import { useAgents } from '@/hooks/agents';
 import { formatFileSize } from '@/lib/file-utils';
 import { ActivitySection, ActivitySectionSkeleton } from '@/components/activity';
 import { useCapabilitiesModal } from '@/hooks/useCapabilitiesModal';
@@ -71,6 +72,8 @@ function DashboardContent() {
     !!organizationId
   );
 
+  // Fetch agents for the Agents stat card
+  const { data: agentsData, isLoading: agentsLoading, error: agentsError } = useAgents();
 
   // Helper to format large numbers (1000 → 1K, 1000000 → 1M)
   const formatNumber = (num: number): string => {
@@ -102,14 +105,27 @@ function DashboardContent() {
 
   // Dynamic stats array with real data
   const stats = [
-    { 
-      name: 'Documents', 
+    {
+      name: 'Documents',
       value: statsLoading ? '...' : (statsError ? 'Error' : (documentStats?.total_documents || 0).toString()),
       change: statsLoading ? 'Loading...' : (statsError ? 'API Error' : `${documentStats?.total_documents ? '+' : ''}${documentStats?.total_documents || 0}`),
       changeType: statsError ? 'decrease' as const : 'increase' as const,
       icon: DocumentTextIcon,
       description: statsLoading ? 'Loading document data...' : (statsError ? 'Unable to load document data from API' : 'Documents in your organization'),
       link: '/documents'
+    },
+    {
+      name: 'Agents',
+      value: agentsLoading ? '...' : (agentsError ? 'Error' : (agentsData?.length ?? 0).toString()),
+      change: agentsLoading ? 'Loading...' : (agentsError ? 'API Error' : `${agentsData?.length ? '+' : ''}${agentsData?.length ?? 0}`),
+      changeType: agentsError ? 'decrease' as const : 'increase' as const,
+      icon: BoltIcon,
+      description: agentsLoading
+        ? 'Loading agents…'
+        : agentsError
+          ? 'Unable to load agents'
+          : `${agentsData?.length ?? 0} agent${(agentsData?.length ?? 0) === 1 ? '' : 's'} configured`,
+      link: '/agents',
     },
     {
       name: 'API Usage',
@@ -295,14 +311,23 @@ function DashboardContent() {
                   >
                     Upload Document
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="w-full justify-start"
                     icon={<ChartBarIcon className="w-4 h-4" />}
                     onClick={handleViewReports}
                   >
                     View Reports
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                    icon={<BoltIcon className="w-4 h-4" />}
+                    onClick={() => router.push('/agents/new')}
+                  >
+                    Create Agent
                   </Button>
                 </div>
               </CardContent>
