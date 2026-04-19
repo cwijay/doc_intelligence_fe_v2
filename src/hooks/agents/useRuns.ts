@@ -58,6 +58,6 @@ export const useRunsForAgent = (agentId: string | undefined) => {
     data: runs,
     isLoading: runsQuery.isLoading || versionsQuery.isLoading,
     error: runsQuery.error || versionsQuery.error,
-    refetch: runsQuery.refetch,
+    refetch: () => Promise.all([runsQuery.refetch(), versionsQuery.refetch()]),
   };
 };

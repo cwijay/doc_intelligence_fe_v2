@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { templatesApi } from '@/lib/api/agents';
+import { authService } from '@/lib/auth';
 
 export const AGENT_QUERY_KEYS = {
   templates: ['agent-templates'] as const,
@@ -15,5 +16,5 @@ export const useTemplates = (enabled = true) =>
     queryKey: AGENT_QUERY_KEYS.templates,
     queryFn: () => templatesApi.list(),
     staleTime: 60 * 60 * 1000, // 1 hour — the template set is static
-    enabled,
+    enabled: enabled && !!authService.getAccessToken(),
   });

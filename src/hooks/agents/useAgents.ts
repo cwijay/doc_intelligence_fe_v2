@@ -69,7 +69,11 @@ export const useDeleteAgent = () => {
   const orgId = user?.org_id || '';
   return useMutation({
     mutationFn: (agentId: string) => agentsApi.remove(agentId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: AGENT_QUERY_KEYS.agents(orgId) }),
+    onSuccess: (_, agentId) => {
+      qc.removeQueries({ queryKey: AGENT_QUERY_KEYS.agent(orgId, agentId) });
+      qc.removeQueries({ queryKey: AGENT_QUERY_KEYS.versions(orgId, agentId) });
+      qc.invalidateQueries({ queryKey: AGENT_QUERY_KEYS.agents(orgId) });
+    },
   });
 };
 
