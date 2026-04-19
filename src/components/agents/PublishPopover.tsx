@@ -21,8 +21,15 @@ export default function PublishPopover({ agentId }: Props) {
     const onDocClick = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [open]);
 
   const submit = async () => {
@@ -54,7 +61,7 @@ export default function PublishPopover({ agentId }: Props) {
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             placeholder="What changed in this version?"
-            className="w-full rounded-lg border border-secondary-300 dark:border-secondary-700 px-3 py-2 text-sm bg-white dark:bg-secondary-900"
+            className="w-full rounded-lg border border-secondary-300 dark:border-secondary-700 px-3 py-2 text-sm bg-white dark:bg-secondary-900 text-secondary-900 dark:text-secondary-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
           />
           <div className="flex justify-end gap-2 mt-3">
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>

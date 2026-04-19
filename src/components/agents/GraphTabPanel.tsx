@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import GraphPreview from './GraphPreview';
 import { useAgentVersions, useDryRun } from '@/hooks/agents';
@@ -15,12 +15,14 @@ export default function GraphTabPanel({ agent }: Props) {
   const dryRun = useDryRun(agent.id);
   const publishedSpec: GraphSpec | undefined = versions[0]?.graphSpec;
 
+  const mutateRef = useRef(dryRun.mutate);
+  useEffect(() => { mutateRef.current = dryRun.mutate; });
+
   useEffect(() => {
     if (!publishedSpec && !dryRun.data && !dryRun.isPending && !dryRun.error) {
-      dryRun.mutate({ inputPayload: {} });
+      mutateRef.current({ inputPayload: {} });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publishedSpec]);
+  }, [publishedSpec, dryRun.data, dryRun.isPending, dryRun.error]);
 
   const spec = publishedSpec ?? dryRun.data?.graphSpec;
 
