@@ -72,7 +72,7 @@ source "$ENV_FILE"
 set +a
 
 # Required vars sanity check
-for var in NEXT_PUBLIC_API_URL NEXT_PUBLIC_AI_API_URL NEXT_PUBLIC_GCS_BUCKET_NAME; do
+for var in NEXT_PUBLIC_API_URL NEXT_PUBLIC_AI_API_URL NEXT_PUBLIC_AGENT_API_URL NEXT_PUBLIC_GCS_BUCKET_NAME; do
     [[ -n "${!var:-}" ]] || die "$var is unset (check $ENV_FILE)"
 done
 
@@ -91,6 +91,7 @@ check_backend() {
 if [[ "$SKIP_CHECKS" != "true" ]]; then
     check_backend "Main API" "$NEXT_PUBLIC_API_URL"
     check_backend "AI API"   "$NEXT_PUBLIC_AI_API_URL"
+    check_backend "Agent API" "$NEXT_PUBLIC_AGENT_API_URL"
 fi
 
 # ---------------------------- launch ----------------------------
@@ -101,6 +102,7 @@ echo ""
 log_info "Starting Next.js dev server (local -> local backends)"
 echo "  Main API:       $NEXT_PUBLIC_API_URL"
 echo "  AI API:         $NEXT_PUBLIC_AI_API_URL"
+echo "  Agent API:      $NEXT_PUBLIC_AGENT_API_URL"
 echo "  GCS bucket:     gs://$NEXT_PUBLIC_GCS_BUCKET_NAME"
 echo "  Bundler:        $BUNDLER"
 echo "  Server:         http://$HOST:$PORT"

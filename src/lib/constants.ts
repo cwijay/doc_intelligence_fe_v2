@@ -112,6 +112,8 @@ export const TIMEOUTS = {
   RAG_FAST: 15000,
   /** Base API operations (2 minutes) */
   BASE_API: 120000,
+  /** Agent Builder API operations (2 minutes) - synchronous runs */
+  AGENT_API: 120000,
   /** Diagnostics checks (2 minutes) */
   DIAGNOSTICS: 120000,
   /** Backend monitor health checks (2 minutes) */

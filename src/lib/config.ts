@@ -9,6 +9,7 @@
 // Base URLs from environment
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const AI_API_BASE = process.env.NEXT_PUBLIC_AI_API_URL || 'http://localhost:8001';
+const AGENT_API_BASE = process.env.NEXT_PUBLIC_AGENT_API_URL || 'http://localhost:8010';
 
 // API path constants
 const API_PATHS = {
@@ -34,6 +35,9 @@ export const clientConfig = {
   ingestApiBaseUrl: AI_API_BASE,
   ingestApiUrl: `${AI_API_BASE}${API_PATHS.ingest}`,
 
+  // Agent Builder API
+  agentApiBaseUrl: AGENT_API_BASE,
+
   // GCS Storage Configuration
   gcsBucketName: process.env.NEXT_PUBLIC_GCS_BUCKET_NAME || '',
   gcsBucketUrl: process.env.NEXT_PUBLIC_GCS_BUCKET_URL || 'https://storage.googleapis.com',
@@ -56,6 +60,7 @@ export const clientConfig = {
 // Local proxy configuration
 const LOCAL_PROXY_BASE_PATH = '/api/backend';
 const AI_LOCAL_PROXY_BASE_PATH = '/api/ai';
+const AGENT_LOCAL_PROXY_BASE_PATH = '/api/agents-backend';
 
 const shouldUseLocalProxy = (): boolean => {
   // Disable proxy only if explicitly set
@@ -90,6 +95,7 @@ export const getBrowserApiOrigin = (): string => {
 export const isUsingLocalProxy = (): boolean => shouldUseLocalProxy();
 export const API_LOCAL_PROXY_PATH = LOCAL_PROXY_BASE_PATH;
 export const AI_API_LOCAL_PROXY_PATH = AI_LOCAL_PROXY_BASE_PATH;
+export const AGENT_API_LOCAL_PROXY_PATH = AGENT_LOCAL_PROXY_BASE_PATH;
 
 /**
  * Get the AI API base URL, using local proxy in development
@@ -99,6 +105,16 @@ export const getBrowserAiApiBaseUrl = (): string => {
     return AI_LOCAL_PROXY_BASE_PATH;
   }
   return clientConfig.aiApiBaseUrl;
+};
+
+/**
+ * Get the Agent Builder API base URL, using local proxy in browser
+ */
+export const getBrowserAgentApiBaseUrl = (): string => {
+  if (shouldUseLocalProxy()) {
+    return AGENT_LOCAL_PROXY_BASE_PATH;
+  }
+  return clientConfig.agentApiBaseUrl;
 };
 
 // Server-side configuration (only accessible in server components and API routes)
@@ -114,6 +130,9 @@ export const serverConfig = {
   ragApiUrl: `${AI_API_BASE}${API_PATHS.rag}`,
   ingestApiBaseUrl: AI_API_BASE,
   ingestApiUrl: `${AI_API_BASE}${API_PATHS.ingest}`,
+
+  // Agent Builder API
+  agentApiBaseUrl: AGENT_API_BASE,
 
   // Authentication
   authEnabled: process.env.NEXT_PUBLIC_AUTH_ENABLED === 'true',
@@ -165,6 +184,7 @@ export const logConfigurationSummary = (): void => {
     console.log('Configuration:', {
       mainApi: clientConfig.apiBaseUrl,
       aiApi: clientConfig.aiApiBaseUrl,
+      agentApi: clientConfig.agentApiBaseUrl,
       authEnabled: clientConfig.authEnabled,
     });
   }
@@ -176,6 +196,7 @@ if (typeof window !== 'undefined' && clientConfig.isDevelopment) {
     console.table({
       'Main API': clientConfig.apiBaseUrl,
       'AI API': clientConfig.aiApiBaseUrl,
+      'Agent API': clientConfig.agentApiBaseUrl,
       'RAG URL': clientConfig.ragApiUrl,
       'Ingest URL': clientConfig.ingestApiUrl,
       'Auth Enabled': clientConfig.authEnabled,
