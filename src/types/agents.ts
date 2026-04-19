@@ -153,7 +153,6 @@ export interface PublishInput {
 
 export interface RunInput {
   inputPayload: Record<string, unknown>;
-  dryRun?: boolean;
 }
 
 // ----- Templates -----

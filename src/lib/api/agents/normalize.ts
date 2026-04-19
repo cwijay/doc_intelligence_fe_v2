@@ -24,8 +24,8 @@ export const normalizeGraphSpec = (w: GraphSpecWire): GraphSpec => ({
   organizationId: w.organization_id,
   graphType: w.graph_type,
   entryNode: w.entry_node,
-  nodes: w.nodes.map((n) => ({ id: n.id, nodeType: n.node_type, config: n.config })),
-  edges: w.edges.map((e) => ({ source: e.source, target: e.target })),
+  nodes: (w.nodes ?? []).map((n) => ({ id: n.id, nodeType: n.node_type, config: n.config })),
+  edges: (w.edges ?? []).map((e) => ({ source: e.source, target: e.target })),
 });
 
 export const normalizeVersion = (w: AgentVersionWire): AgentVersion => ({
@@ -42,7 +42,7 @@ export const normalizeRun = (w: AgentRunWire): AgentRun => ({
   id: w.id,
   organizationId: w.organization_id,
   agentVersionId: w.agent_version_id,
-  status: w.status as AgentRun['status'],
+  status: w.status,
   inputPayload: w.input_payload,
   outputPayload: w.output_payload,
   createdAt: w.created_at,
