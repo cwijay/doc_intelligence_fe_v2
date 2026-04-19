@@ -12,3 +12,4 @@ export { default as RunsList } from './RunsList';
 export { default as PublishPopover } from './PublishPopover';
 export { default as RunDialog } from './RunDialog';
 export { default as RunDetail } from './RunDetail';
+export { default as DryRunPanel } from './DryRunPanel';
