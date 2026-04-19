@@ -68,6 +68,8 @@ export const API_CONFIG = {
   DEFAULT_MAIN_PORT: 8000,
   /** Default AI API port */
   DEFAULT_AI_PORT: 8001,
+  /** Default Agent Builder API port */
+  DEFAULT_AGENT_PORT: 8010,
   /** Default local API host */
   DEFAULT_HOST: 'localhost',
 } as const;

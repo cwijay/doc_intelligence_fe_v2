@@ -1,9 +1,10 @@
 /**
  * Centralized configuration for the Document Intelligence application
  *
- * Uses just 2 base URLs:
+ * Uses 3 base URLs:
  * - NEXT_PUBLIC_API_URL: Main backend API (auth, documents, folders, etc.)
  * - NEXT_PUBLIC_AI_API_URL: AI services API (RAG, Excel chat, ingestion)
+ * - NEXT_PUBLIC_AGENT_API_URL: Agent Builder API (templates, agents, runs)
  */
 
 // Base URLs from environment
