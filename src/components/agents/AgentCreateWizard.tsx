@@ -17,7 +17,7 @@ const MODES: { value: AgentMode; label: string; hint: string }[] = [
 
 export default function AgentCreateWizard() {
   const router = useRouter();
-  const { data: templateIds = [], isLoading: loadingTemplates } = useTemplates();
+  const { data: templateIds = [], isLoading: loadingTemplates, isError: templatesError } = useTemplates();
   const createAgent = useCreateAgent();
 
   const [step, setStep] = useState(1);
@@ -55,7 +55,7 @@ export default function AgentCreateWizard() {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Basics</h2>
             <div>
-              <label htmlFor="agent-name" className="block text-sm font-medium mb-1">Name *</label>
+              <label htmlFor="agent-name" className="block text-sm font-medium mb-1 text-secondary-700 dark:text-secondary-300">Name *</label>
               <input
                 id="agent-name"
                 type="text"
@@ -66,7 +66,7 @@ export default function AgentCreateWizard() {
               />
             </div>
             <div>
-              <label htmlFor="agent-description" className="block text-sm font-medium mb-1">Description</label>
+              <label htmlFor="agent-description" className="block text-sm font-medium mb-1 text-secondary-700 dark:text-secondary-300">Description</label>
               <textarea
                 id="agent-description"
                 value={description}
@@ -117,7 +117,15 @@ export default function AgentCreateWizard() {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Template</h2>
             {loadingTemplates ? (
-              <p className="text-sm text-secondary-500">Loading templates…</p>
+              <p className="text-sm text-secondary-500 dark:text-secondary-400">Loading templates…</p>
+            ) : templatesError ? (
+              <p className="text-sm text-error-600 dark:text-error-400">
+                Failed to load templates. Check that the agent builder backend is reachable.
+              </p>
+            ) : templateIds.length === 0 ? (
+              <p className="text-sm text-secondary-500 dark:text-secondary-400">
+                No templates are available from the backend yet.
+              </p>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {templateIds.map((id) => {
@@ -137,7 +145,7 @@ export default function AgentCreateWizard() {
                     >
                       <div className="font-semibold">{copy.title}</div>
                       <p className="text-xs text-secondary-600 dark:text-secondary-400 mt-1">{copy.description}</p>
-                      <p className="text-xs text-secondary-500 mt-2 italic">{copy.useCase}</p>
+                      <p className="text-xs text-secondary-500 dark:text-secondary-400 mt-2 italic">{copy.useCase}</p>
                       <div className="mt-3 flex flex-wrap gap-1">
                         {copy.nodeTypes.map((nt) => (
                           <span key={nt} className="px-2 py-0.5 rounded text-xs bg-secondary-100 dark:bg-secondary-800 text-secondary-700 dark:text-secondary-300">
@@ -166,21 +174,25 @@ export default function AgentCreateWizard() {
 function Stepper({ step }: { step: number }) {
   const steps = ['Basics', 'Mode', 'Template'];
   return (
-    <div className="flex items-center gap-2 text-xs">
+    <div role="list" className="flex items-center gap-2 text-xs">
       {steps.map((label, idx) => {
         const n = idx + 1;
         const active = n === step;
         const done = n < step;
         return (
-          <div key={label} className="flex items-center gap-2">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold ${
-              active ? 'bg-primary-500 text-white' :
-              done ? 'bg-success-500 text-white' :
-              'bg-secondary-200 dark:bg-secondary-700 text-secondary-600 dark:text-secondary-300'
-            }`}>
-              {n}
+          <div key={label} role="listitem" className="flex items-center gap-2">
+            <div
+              aria-current={active ? 'step' : undefined}
+              className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold ${
+                active ? 'bg-primary-500 text-white' :
+                done ? 'bg-success-500 text-white' :
+                'bg-secondary-200 dark:bg-secondary-700 text-secondary-600 dark:text-secondary-300'
+              }`}
+            >
+              <span aria-hidden={done ? 'true' : undefined}>{n}</span>
+              {done && <span className="sr-only"> (completed)</span>}
             </div>
-            <span className={active ? 'font-medium' : 'text-secondary-500'}>{label}</span>
+            <span className={active ? 'font-medium' : 'text-secondary-500 dark:text-secondary-400'}>{label}</span>
             {n < steps.length && <div className="w-8 h-px bg-secondary-300 dark:bg-secondary-700" />}
           </div>
         );
