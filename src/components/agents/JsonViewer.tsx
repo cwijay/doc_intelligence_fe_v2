@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 interface JsonViewerProps {
@@ -11,12 +11,22 @@ interface JsonViewerProps {
 
 export default function JsonViewer({ value, label, maxHeight = 'max-h-96' }: JsonViewerProps) {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pretty = JSON.stringify(value, null, 2);
 
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
   const copy = async () => {
-    await navigator.clipboard.writeText(pretty);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(pretty);
+      setCopied(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard permission denied or API unavailable — fail silently.
+    }
   };
 
   return (
@@ -28,10 +38,14 @@ export default function JsonViewer({ value, label, maxHeight = 'max-h-96' }: Jso
         <button
           type="button"
           onClick={copy}
+          aria-label={copied ? 'Copied' : 'Copy to clipboard'}
           className="p-1 rounded hover:bg-secondary-200 dark:hover:bg-secondary-800 text-secondary-500"
-          title="Copy to clipboard"
         >
-          {copied ? <CheckIcon className="w-4 h-4" /> : <ClipboardDocumentIcon className="w-4 h-4" />}
+          {copied ? (
+            <CheckIcon className="w-4 h-4" aria-hidden="true" />
+          ) : (
+            <ClipboardDocumentIcon className="w-4 h-4" aria-hidden="true" />
+          )}
         </button>
       </div>
       <pre className={`p-3 text-xs font-mono overflow-auto ${maxHeight} text-secondary-800 dark:text-secondary-200`}>
