@@ -53,9 +53,10 @@ Biz-To-Bricks is a document intelligence platform built with Next.js 16, React 1
     └─────────────────┘  └─────────────┘  └─────────────┘
 ```
 
-### 2-URL API Configuration
+### 3-URL API Configuration
 - **Main API** (`NEXT_PUBLIC_API_URL` - port 8000): Auth, documents, folders, users, parsing
 - **AI API** (`NEXT_PUBLIC_AI_API_URL` - port 8001): Summaries, FAQs, questions, RAG chat, ingestion, bulk upload, insights, usage tracking
+- **Agent API** (`NEXT_PUBLIC_AGENT_API_URL` - port 8010): Agent definitions, templates, versions, dry-runs, runs
 
 ### Core Patterns
 - **Next.js App Router**: Modern app directory structure in `src/app/`
@@ -73,6 +74,7 @@ src/
 │   ├── api/documents/     # Document content proxy
 │   └── documents/[documentId]/  # Dynamic document routes (summary, faq, chat, etc.)
 ├── components/            # React components by feature
+│   ├── agents/            # Agent builder UI (list/wizard/detail/dry-run)
 │   ├── documents/         # Document UI (ai-modal, ai-content, chat, card)
 │   ├── insights/          # Audit dashboard components
 │   ├── usage/             # Usage tracking components
@@ -80,7 +82,8 @@ src/
 ├── contexts/              # React contexts (AuthContext, ThemeContext)
 ├── hooks/                 # Custom hooks
 │   ├── ai/                # AI generation hooks
-│   └── rag/               # RAG chat hooks
+│   ├── rag/               # RAG chat hooks
+│   └── agents/            # Agent builder hooks (templates, agents, runs, dry-run)
 ├── lib/                   # Core utilities
 │   ├── api/               # API clients (base, ai-base, client-factory)
 │   │   ├── ai-features/   # Summary, FAQ, questions modules
@@ -129,12 +132,13 @@ NEXT_PUBLIC_AI_API_URL=http://localhost:8001
 NEXT_PUBLIC_AUTH_ENABLED=true
 NEXT_PUBLIC_APP_NAME=Biz-To-Bricks
 NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_AGENT_API_URL=http://localhost:8010
 ```
 
 ## Key Files
 
 ### Configuration
-- `src/lib/config.ts` - 2-URL pattern configuration with client/server separation
+- `src/lib/config.ts` - 3-URL pattern configuration with client/server separation
 - `src/lib/constants.ts` - Centralized constants (TIMEOUTS, STORAGE_KEYS, LAYOUT, AI_LIMITS)
 - `src/lib/api/client-factory.ts` - Shared Axios client factory with interceptors
 
@@ -158,6 +162,11 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 | `useBulkUpload()` | Multi-file upload with job polling |
 | `useInsights()` | Audit dashboard with 30s auto-refresh |
 | `useUsageDashboard()` | Usage tracking and quotas |
+| `useAgents()` | List org agents + CRUD mutations |
+| `useAgent(id)` | Fetch a single agent |
+| `useAgentVersions(id)` | Published versions of an agent |
+| `useRunsForAgent(id)` | Client-filtered runs for one agent |
+| `useDryRun(id)` | Dry-run mutation returning compiled graph + output |
 
 ### AI Hooks (`src/hooks/ai/`)
 - `useAIGeneration.ts` - Generic factory hook for AI features
@@ -187,6 +196,16 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 - `GET /api/v1/audit/dashboard` - Insights dashboard
 - `GET /api/v1/usage/summary` - Usage metrics
 
+### Agent API (port 8010)
+- `GET /api/v1/templates/` - List template ids
+- `POST /api/v1/agents/` - Create agent definition
+- `GET /api/v1/agents/` - List agents (org-scoped)
+- `GET/PATCH/DELETE /api/v1/agents/{id}` - Manage agent
+- `POST /api/v1/agents/{id}/publish` - Publish a version
+- `POST /api/v1/agents/{id}/dry-run` - Compile + run on draft
+- `POST /api/v1/runs/{agentId}` - Create real run
+- `GET /api/v1/runs/` - List runs (org-wide; filter client-side)
+
 ## Routes
 
 ### Protected Routes (require auth)
@@ -203,6 +222,10 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 - `/usage` - Usage tracking
 - `/settings` - Settings (Account/Organization/Application tabs)
 - `/users` - User management (admin-only)
+- `/agents` - Agent list
+- `/agents/new` - Create agent wizard
+- `/agents/[agentId]` - Agent detail (Overview / Graph / Runs tabs)
+- `/agents/[agentId]/test` - Dry-run playground
 
 ## Bulk Upload
 
