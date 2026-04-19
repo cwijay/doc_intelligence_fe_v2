@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { format } from 'date-fns';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { AgentRun } from '@/types/agents';
 import JsonViewer from './JsonViewer';
 
@@ -11,13 +12,21 @@ interface Props {
 }
 
 export default function RunDetail({ run, onClose }: Props) {
-  // Escape closes the drawer
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Escape closes; body scroll lock; initial focus on close button.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prev;
+    };
   }, [onClose]);
 
   return (
@@ -30,11 +39,12 @@ export default function RunDetail({ run, onClose }: Props) {
             <p className="text-xs font-mono text-secondary-500 dark:text-secondary-400 break-all">{run.id}</p>
           </div>
           <button
+            ref={closeRef}
             onClick={onClose}
             aria-label="Close run detail"
-            className="text-secondary-500 hover:text-secondary-800 dark:hover:text-secondary-200"
+            className="p-1 rounded text-secondary-500 hover:text-secondary-800 dark:hover:text-secondary-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            ✕
+            <XMarkIcon className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
         <div className="p-5 space-y-4">

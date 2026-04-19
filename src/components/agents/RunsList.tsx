@@ -48,7 +48,6 @@ export default function RunsList({ agentId }: Props) {
               {runs.map((r) => (
                 <tr
                   key={r.id}
-                  role="button"
                   tabIndex={0}
                   onClick={() => setSelected(r)}
                   onKeyDown={(e) => {
@@ -79,11 +78,11 @@ export default function RunsList({ agentId }: Props) {
 }
 
 function StatusPill({ status }: { status: AgentRun['status'] }) {
-  const cls = {
+  const cls = ({
     pending: 'bg-secondary-100 text-secondary-700 dark:bg-secondary-800 dark:text-secondary-300',
     running: 'bg-warning-100 text-warning-700 dark:bg-warning-900/40 dark:text-warning-300',
     completed: 'bg-success-100 text-success-700 dark:bg-success-900/40 dark:text-success-300',
     failed: 'bg-error-100 text-error-700 dark:bg-error-900/40 dark:text-error-300',
-  }[status];
+  } as Record<string, string>)[status] ?? 'bg-secondary-100 text-secondary-700 dark:bg-secondary-800 dark:text-secondary-300';
   return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{status}</span>;
 }
