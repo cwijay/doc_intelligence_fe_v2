@@ -13,7 +13,7 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   DocumentChartBarIcon,
-  BoltIcon,
+  CpuChipIcon,
 } from '@heroicons/react/24/outline';
 import Logo from '@/components/ui/Logo';
 import { clsx } from 'clsx';
@@ -23,7 +23,7 @@ import { LAYOUT } from '@/lib/constants';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon },
   { name: 'Documents', href: '/documents', icon: DocumentTextIcon },
-  { name: 'Agents', href: '/agents', icon: BoltIcon },
+  { name: 'Agents', href: '/agents', icon: CpuChipIcon },
   { name: 'Reports', href: '/reports', icon: DocumentChartBarIcon },
   { name: 'Usage', href: '/usage', icon: ChartPieIcon },
   { name: 'Insights', href: '/insights', icon: LightBulbIcon },

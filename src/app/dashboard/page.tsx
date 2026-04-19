@@ -4,6 +4,7 @@ import React from 'react';
 import {
   DocumentTextIcon,
   BoltIcon,
+  CpuChipIcon,
   ChartBarIcon,
   CircleStackIcon,
   SparklesIcon,
@@ -119,7 +120,7 @@ function DashboardContent() {
       value: agentsLoading ? '...' : (agentsError ? 'Error' : (agentsData?.length ?? 0).toString()),
       change: agentsLoading ? 'Loading...' : (agentsError ? 'API Error' : `${agentsData?.length ? '+' : ''}${agentsData?.length ?? 0}`),
       changeType: agentsError ? 'decrease' as const : 'increase' as const,
-      icon: BoltIcon,
+      icon: CpuChipIcon,
       description: agentsLoading
         ? 'Loading agents…'
         : agentsError
@@ -324,7 +325,7 @@ function DashboardContent() {
                     variant="outline"
                     size="sm"
                     className="w-full justify-start"
-                    icon={<BoltIcon className="w-4 h-4" />}
+                    icon={<CpuChipIcon className="w-4 h-4" />}
                     onClick={() => router.push('/agents/new')}
                   >
                     Create Agent
