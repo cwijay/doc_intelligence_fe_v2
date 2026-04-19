@@ -20,9 +20,15 @@ export default function DryRunPanel({ agentId }: Props) {
   const dryRun = useDryRun(agentId);
 
   const submit = async () => {
+    dryRun.reset();
     let payload: Record<string, unknown>;
     try {
-      payload = input.trim() ? JSON.parse(input) : {};
+      const parsed: unknown = input.trim() ? JSON.parse(input) : {};
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        toast.error('Input must be a JSON object, e.g. {"query": "hello"}');
+        return;
+      }
+      payload = parsed as Record<string, unknown>;
     } catch (e) {
       toast.error(`Invalid JSON: ${e instanceof Error ? e.message : 'parse error'}`);
       return;
@@ -38,7 +44,7 @@ export default function DryRunPanel({ agentId }: Props) {
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardContent className="p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-secondary-600 dark:text-secondary-400 uppercase">Input</h3>
+          <h2 className="text-sm font-semibold text-secondary-600 dark:text-secondary-400 uppercase">Input</h2>
           <JsonEditor value={input} onChange={setInput} rows={14} />
           <div className="flex justify-end">
             <Button onClick={submit} disabled={dryRun.isPending}>
@@ -50,7 +56,7 @@ export default function DryRunPanel({ agentId }: Props) {
 
       <Card>
         <CardContent className="p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-secondary-600 dark:text-secondary-400 uppercase">Output</h3>
+          <h2 className="text-sm font-semibold text-secondary-600 dark:text-secondary-400 uppercase">Output</h2>
           {dryRun.error && (
             <p className="text-sm text-error-600 dark:text-error-400">
               {dryRun.error instanceof Error ? dryRun.error.message : 'Unknown error'}
