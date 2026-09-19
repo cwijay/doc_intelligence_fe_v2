@@ -11,6 +11,7 @@ import { adaptIngestParseResponse } from '@/lib/api/utils/parse-adapter';
 import { fileUtils } from '@/lib/file-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { clientConfig } from '@/lib/config';
+import { constructGcsUri } from '@/lib/gcs-paths';
 import { storeParseResultsForNavigation } from '@/hooks/useParseResultsPage';
 import toast from 'react-hot-toast';
 
@@ -495,9 +496,11 @@ export function useDocumentActions(): DocumentActionsReturn {
 
       // Build original GCS path for metadata
       const gcsBucket = clientConfig.gcsBucketName;
-      const originalGcsPath = selectedDocumentForParse.storage_path
-        ? `gs://${gcsBucket}/${selectedDocumentForParse.storage_path}`
-        : `gs://${gcsBucket}/${orgName}/original/${cleanFolderName}/${selectedDocumentForParse.name}`;
+      const originalGcsPath = constructGcsUri(
+        gcsBucket,
+        selectedDocumentForParse.storage_path ||
+          `${orgName}/original/${cleanFolderName}/${selectedDocumentForParse.name}`
+      );
 
       console.log('📁 Save and index parameters:', {
         targetPath,

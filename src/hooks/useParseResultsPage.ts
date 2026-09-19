@@ -8,6 +8,7 @@ import { organizationsApi, foldersApi } from '@/lib/api/index';
 import { saveAndIndexDocument } from '@/lib/api/ingestion/index';
 import { loadParsedContent, createLoadParsedRequest } from '@/lib/api/ingestion/content';
 import { clientConfig } from '@/lib/config';
+import { constructGcsUri } from '@/lib/gcs-paths';
 import toast from 'react-hot-toast';
 
 // Session storage keys
@@ -219,9 +220,10 @@ export function useParseResultsPage(documentId: string): UseParseResultsPageRetu
 
       // Build original GCS path
       const gcsBucket = clientConfig.gcsBucketName;
-      const originalGcsPath = document.storage_path
-        ? `gs://${gcsBucket}/${document.storage_path}`
-        : `gs://${gcsBucket}/${orgName}/original/${cleanFolderName}/${document.name}`;
+      const originalGcsPath = constructGcsUri(
+        gcsBucket,
+        document.storage_path || `${orgName}/original/${cleanFolderName}/${document.name}`
+      );
 
       console.log('💾 Saving and indexing document:', {
         targetPath,

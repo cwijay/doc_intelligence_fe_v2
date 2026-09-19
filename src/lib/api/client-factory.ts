@@ -6,7 +6,7 @@
 
 import axios, { AxiosInstance, AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { authService } from '@/lib/auth';
-import { clientConfig, getBrowserAiApiBaseUrl, getBrowserAgentApiBaseUrl } from '@/lib/config';
+import { clientConfig, getBrowserAiApiBaseUrl, getBrowserAgentApiBaseUrl, getBrowserIngestApiBaseUrl } from '@/lib/config';
 import { HEADERS, TIMEOUTS } from '@/lib/constants';
 import { normalizeErrorMessage, createErrorMessage, isQuotaExceededError, formatQuotaExceededMessage } from './utils/error-utils';
 
@@ -326,7 +326,7 @@ export const getAiApiConfig = (): ApiClientConfig => ({
  * Note: Ingestion API expects organization NAME in X-Organization-ID header, not UUID
  */
 export const INGESTION_API_CONFIG: ApiClientConfig = {
-  baseURL: clientConfig.ingestApiUrl,
+  baseURL: typeof window !== 'undefined' ? getBrowserIngestApiBaseUrl() : clientConfig.ingestApiUrl,
   timeout: TIMEOUTS.AI_API,
   serviceName: 'Ingestion',
   includeOrgHeader: true,
@@ -342,7 +342,7 @@ export const INGESTION_API_CONFIG: ApiClientConfig = {
  * Note: RAG API expects organization NAME in X-Organization-ID header, not UUID
  */
 export const RAG_API_CONFIG: ApiClientConfig = {
-  baseURL: clientConfig.aiApiBaseUrl,
+  baseURL: typeof window !== 'undefined' ? getBrowserAiApiBaseUrl() : clientConfig.aiApiBaseUrl,
   timeout: TIMEOUTS.RAG_API,
   serviceName: 'RAG',
   includeOrgHeader: true,

@@ -187,11 +187,21 @@ export const constructQuestionsPath = (params: PathParams): string =>
 /**
  * Construct a full GCS URI from bucket and path.
  *
+ * Idempotent: a path that is already a gs:// URI is returned unchanged. Several
+ * sources (documents.storage_path, the ingest API's saved_path) hand back full
+ * URIs rather than bucket-relative keys, and blindly prefixing those produced
+ * doubled paths like `gs://bucket/gs://bucket/Acme Corp/original/doc.pdf`.
+ *
  * @example
  * constructGcsUri('my-bucket', 'Acme Corp/parsed/invoices/doc.md')
  * // 'gs://my-bucket/Acme Corp/parsed/invoices/doc.md'
+ * constructGcsUri('my-bucket', 'gs://my-bucket/Acme Corp/parsed/doc.md')
+ * // 'gs://my-bucket/Acme Corp/parsed/doc.md'  (unchanged)
  */
 export function constructGcsUri(bucket: string, path: string): string {
+  if (isGcsUri(path)) {
+    return path;
+  }
   return `gs://${bucket}/${path}`;
 }
 

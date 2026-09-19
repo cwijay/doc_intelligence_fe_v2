@@ -62,6 +62,7 @@ export const clientConfig = {
 const LOCAL_PROXY_BASE_PATH = '/api/backend';
 const AI_LOCAL_PROXY_BASE_PATH = '/api/ai';
 const AGENT_LOCAL_PROXY_BASE_PATH = '/api/agents-backend';
+const INGEST_LOCAL_PROXY_BASE_PATH = '/api/ingest';
 
 const shouldUseLocalProxy = (): boolean => {
   // Disable proxy only if explicitly set
@@ -97,6 +98,7 @@ export const isUsingLocalProxy = (): boolean => shouldUseLocalProxy();
 export const API_LOCAL_PROXY_PATH = LOCAL_PROXY_BASE_PATH;
 export const AI_API_LOCAL_PROXY_PATH = AI_LOCAL_PROXY_BASE_PATH;
 export const AGENT_API_LOCAL_PROXY_PATH = AGENT_LOCAL_PROXY_BASE_PATH;
+export const INGEST_API_LOCAL_PROXY_PATH = INGEST_LOCAL_PROXY_BASE_PATH;
 
 /**
  * Get the AI API base URL, using local proxy in development
@@ -106,6 +108,16 @@ export const getBrowserAiApiBaseUrl = (): string => {
     return AI_LOCAL_PROXY_BASE_PATH;
   }
   return clientConfig.aiApiBaseUrl;
+};
+
+/**
+ * Get the Ingestion API base URL, using local proxy in browser
+ */
+export const getBrowserIngestApiBaseUrl = (): string => {
+  if (shouldUseLocalProxy()) {
+    return INGEST_LOCAL_PROXY_BASE_PATH;
+  }
+  return clientConfig.ingestApiUrl;
 };
 
 /**
